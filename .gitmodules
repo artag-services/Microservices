@@ -1,3 +1,27 @@
 [submodule "gateway"]
 	path = gateway
 	url = https://github.com/artag-services/gateway-service
+[submodule "whatsapp"]
+	path = whatsapp
+	url = https://github.com/artag-services/whatsapp-service
+[submodule "notion"]
+	path = notion
+	url = https://github.com/artag-services/notion-service
+[submodule "slack"]
+	path = slack
+	url = https://github.com/artag-services/slack-service
+[submodule "scrapping"]
+	path = scrapping
+	url = https://github.com/artag-services/scraping-service
+[submodule "instagram"]
+	path = instagram
+	url = https://github.com/artag-services/instagram-service
+[submodule "identity"]
+	path = identity
+	url = https://github.com/artag-services/identity-service
+[submodule "facebook"]
+	path = facebook
+	url = https://github.com/artag-services/facebook-service
+[submodule "tiktok"]
+	path = tiktok
+	url = https://github.com/artag-services/tiktok-service
