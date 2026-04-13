@@ -1,0 +1,237 @@
+
+services:
+  # ─────────────────────────────────────────
+  # Message Broker
+  # ─────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      - '5672:5672'    # AMQP protocol
+      - '15672:15672'  # Management UI → http://localhost:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────
+  # API Gateway
+  # ─────────────────────────────────────────
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: gateway
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${GATEWAY_PORT}:${GATEWAY_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${GATEWAY_DATABASE_URL}
+      PORT: ${GATEWAY_PORT}
+
+  # ─────────────────────────────────────────
+  # Identity Service
+  # ─────────────────────────────────────────
+  identity:
+    build:
+      context: ./identity
+      dockerfile: Dockerfile
+    container_name: identity-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${IDENTITY_PORT}:${IDENTITY_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${IDENTITY_DATABASE_URL}
+      PORT: ${IDENTITY_PORT}
+
+  # ─────────────────────────────────────────
+  # WhatsApp Microservice
+  # ─────────────────────────────────────────
+  whatsapp:
+    build:
+      context: ./whatsapp
+      dockerfile: Dockerfile
+    container_name: whatsapp-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${WHATSAPP_PORT}:${WHATSAPP_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${WHATSAPP_DATABASE_URL}
+      PORT: ${WHATSAPP_PORT}
+      WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN}
+      WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN}
+      WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION}
+
+  # ─────────────────────────────────────────
+  # Slack Microservice
+  # ─────────────────────────────────────────
+  slack:
+    build:
+      context: ./slack
+      dockerfile: Dockerfile
+    container_name: slack-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${SLACK_PORT}:${SLACK_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${SLACK_DATABASE_URL}
+      PORT: ${SLACK_PORT}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+
+  # ─────────────────────────────────────────
+  # Notion Microservice
+  # ─────────────────────────────────────────
+  notion:
+    build:
+      context: ./notion
+      dockerfile: Dockerfile
+    container_name: notion-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${NOTION_PORT}:${NOTION_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${NOTION_DATABASE_URL}
+      PORT: ${NOTION_PORT}
+      NOTION_INTEGRATION_TOKEN: ${NOTION_INTEGRATION_TOKEN}
+
+  # ─────────────────────────────────────────
+  # Instagram Microservice
+  # ─────────────────────────────────────────
+  instagram:
+    build:
+      context: ./instagram
+      dockerfile: Dockerfile
+    container_name: instagram-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${INSTAGRAM_PORT}:${INSTAGRAM_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${INSTAGRAM_DATABASE_URL}
+      PORT: ${INSTAGRAM_PORT}
+      INSTAGRAM_ACCESS_TOKEN: ${INSTAGRAM_ACCESS_TOKEN}
+      INSTAGRAM_PAGE_ID: ${INSTAGRAM_PAGE_ID}
+      INSTAGRAM_WEBHOOK_VERIFY_TOKEN: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN}
+      INSTAGRAM_API_VERSION: ${INSTAGRAM_API_VERSION}
+
+  # ─────────────────────────────────────────
+  # TikTok Microservice
+  # ─────────────────────────────────────────
+  tiktok:
+    build:
+      context: ./tiktok
+      dockerfile: Dockerfile
+    container_name: tiktok-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${TIKTOK_PORT}:${TIKTOK_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${TIKTOK_DATABASE_URL}
+      PORT: ${TIKTOK_PORT}
+      TIKTOK_APP_ID: ${TIKTOK_APP_ID}
+      TIKTOK_APP_SECRET: ${TIKTOK_APP_SECRET}
+      TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN}
+
+  # ─────────────────────────────────────────
+  # Facebook Microservice
+  # ─────────────────────────────────────────
+  facebook:
+    build:
+      context: ./facebook
+      dockerfile: Dockerfile
+    container_name: facebook-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${FACEBOOK_PORT}:${FACEBOOK_PORT}'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      DATABASE_URL: ${FACEBOOK_DATABASE_URL}
+      PORT: ${FACEBOOK_PORT}
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${FACEBOOK_PAGE_ACCESS_TOKEN}
+      FACEBOOK_PAGE_ID: ${FACEBOOK_PAGE_ID}
+      FACEBOOK_WEBHOOK_VERIFY_TOKEN: ${FACEBOOK_WEBHOOK_VERIFY_TOKEN}
+      FACEBOOK_API_VERSION: ${FACEBOOK_API_VERSION}
+
+  # ─────────────────────────────────────────
+  # Scraping Microservice
+  # ─────────────────────────────────────────
+  scraping:
+    build:
+      context: ./scrapping
+      dockerfile: Dockerfile
+    container_name: scraping-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${SCRAPING_PORT:-3008}:3008'
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
+      RABBITMQ_QUEUE_SCRAPING: scraping.task
+      RABBITMQ_QUEUE_NOTIFICATIONS: whatsapp_direct_messages
+      GATEWAY_URL: ${GATEWAY_URL:-http://gateway:3000}
+      GATEWAY_WEBHOOK_TOKEN: ${GATEWAY_WEBHOOK_TOKEN}
+      PUPPETEER_TIMEOUT: ${PUPPETEER_TIMEOUT:-30000}
+      PUPPETEER_MAX_POOL_SIZE: ${PUPPETEER_MAX_POOL_SIZE:-5}
+      PUPPETEER_HEADLESS: 'true'
+      RATE_LIMIT_DAILY: ${RATE_LIMIT_DAILY:-10}
+      RATE_LIMIT_WINDOW_HOURS: ${RATE_LIMIT_WINDOW_HOURS:-24}
+      LOG_LEVEL: info
+      NODE_ENV: production
+
+volumes:
+  rabbitmq_data:
+
+networks:
+  default:
+    name: microservices-network
