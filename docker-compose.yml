@@ -1,6 +1,51 @@
 
 services:
   # ─────────────────────────────────────────
+  # PostgreSQL Database (Local)
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  # ─────────────────────────────────────────
+  # pgAdmin 4 (PostgreSQL Web UI)
+  # ─────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin-web
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'False'
+      PGADMIN_CONFIG_CONSOLE_LOG_LEVEL: 10
+    ports:
+      - '5050:80'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - microservices-network
+
+  # ─────────────────────────────────────────
   # Message Broker
   # ─────────────────────────────────────────
   rabbitmq:
@@ -15,11 +60,16 @@ services:
       - '15672:15672'  # Management UI → http://localhost:15672
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'rabbitmq-diagnostics', 'ping']
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # API Gateway
@@ -34,12 +84,21 @@ services:
     ports:
       - '${GATEWAY_PORT}:${GATEWAY_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
       RABBITMQ_URL: ${RABBITMQ_URL}
       DATABASE_URL: ${GATEWAY_DATABASE_URL}
       PORT: ${GATEWAY_PORT}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: gateway
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Identity Service
@@ -54,12 +113,21 @@ services:
     ports:
       - '${IDENTITY_PORT}:${IDENTITY_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
       RABBITMQ_URL: ${RABBITMQ_URL}
       DATABASE_URL: ${IDENTITY_DATABASE_URL}
       PORT: ${IDENTITY_PORT}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: identity
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # WhatsApp Microservice
@@ -74,6 +142,8 @@ services:
     ports:
       - '${WHATSAPP_PORT}:${WHATSAPP_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -84,6 +154,13 @@ services:
       WHATSAPP_PHONE_NUMBER_ID: ${WHATSAPP_PHONE_NUMBER_ID}
       WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN}
       WHATSAPP_API_VERSION: ${WHATSAPP_API_VERSION}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: whatsapp
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Slack Microservice
@@ -98,6 +175,8 @@ services:
     ports:
       - '${SLACK_PORT}:${SLACK_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -106,6 +185,13 @@ services:
       PORT: ${SLACK_PORT}
       SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
       SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: slack
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Notion Microservice
@@ -120,6 +206,8 @@ services:
     ports:
       - '${NOTION_PORT}:${NOTION_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -127,6 +215,13 @@ services:
       DATABASE_URL: ${NOTION_DATABASE_URL}
       PORT: ${NOTION_PORT}
       NOTION_INTEGRATION_TOKEN: ${NOTION_INTEGRATION_TOKEN}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: notion
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Instagram Microservice
@@ -141,6 +236,8 @@ services:
     ports:
       - '${INSTAGRAM_PORT}:${INSTAGRAM_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -151,6 +248,13 @@ services:
       INSTAGRAM_PAGE_ID: ${INSTAGRAM_PAGE_ID}
       INSTAGRAM_WEBHOOK_VERIFY_TOKEN: ${INSTAGRAM_WEBHOOK_VERIFY_TOKEN}
       INSTAGRAM_API_VERSION: ${INSTAGRAM_API_VERSION}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: instagram
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # TikTok Microservice
@@ -165,6 +269,8 @@ services:
     ports:
       - '${TIKTOK_PORT}:${TIKTOK_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -174,6 +280,13 @@ services:
       TIKTOK_APP_ID: ${TIKTOK_APP_ID}
       TIKTOK_APP_SECRET: ${TIKTOK_APP_SECRET}
       TIKTOK_ACCESS_TOKEN: ${TIKTOK_ACCESS_TOKEN}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: tiktok
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Facebook Microservice
@@ -188,6 +301,8 @@ services:
     ports:
       - '${FACEBOOK_PORT}:${FACEBOOK_PORT}'
     depends_on:
+      postgres:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
@@ -197,41 +312,80 @@ services:
       FACEBOOK_PAGE_ACCESS_TOKEN: ${FACEBOOK_PAGE_ACCESS_TOKEN}
       FACEBOOK_PAGE_ID: ${FACEBOOK_PAGE_ID}
       FACEBOOK_WEBHOOK_VERIFY_TOKEN: ${FACEBOOK_WEBHOOK_VERIFY_TOKEN}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: facebook
       FACEBOOK_API_VERSION: ${FACEBOOK_API_VERSION}
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Scraping Microservice
   # ─────────────────────────────────────────
-  scraping:
-    build:
-      context: ./scrapping
-      dockerfile: Dockerfile
-    container_name: scraping-service
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - '${SCRAPING_PORT:-3008}:3008'
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    environment:
-      RABBITMQ_URL: ${RABBITMQ_URL}
-      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
-      RABBITMQ_QUEUE_SCRAPING: scraping.task
-      RABBITMQ_QUEUE_NOTIFICATIONS: whatsapp_direct_messages
-      GATEWAY_URL: ${GATEWAY_URL:-http://gateway:3000}
-      GATEWAY_WEBHOOK_TOKEN: ${GATEWAY_WEBHOOK_TOKEN}
-      PUPPETEER_TIMEOUT: ${PUPPETEER_TIMEOUT:-30000}
-      PUPPETEER_MAX_POOL_SIZE: ${PUPPETEER_MAX_POOL_SIZE:-5}
-      PUPPETEER_HEADLESS: 'true'
-      RATE_LIMIT_DAILY: ${RATE_LIMIT_DAILY:-10}
-      RATE_LIMIT_WINDOW_HOURS: ${RATE_LIMIT_WINDOW_HOURS:-24}
-      LOG_LEVEL: info
-      NODE_ENV: production
+   # ─────────────────────────────────────────
+   # Browserless Chrome (for Puppeteer)
+   # ─────────────────────────────────────────
+   browserless:
+     image: browserless/chrome:latest
+     container_name: browserless-chrome
+     restart: unless-stopped
+     ports:
+       - '3222:3222'
+     environment:
+       PORT: 3222
+       TIMEOUT: 30000
+       CONNECTION_TIMEOUT: 30000
+     networks:
+       - microservices-network
+
+   scraping:
+     build:
+       context: ./scrapping
+       dockerfile: Dockerfile
+     container_name: scraping-service
+     restart: unless-stopped
+     env_file: .env
+     ports:
+       - '${SCRAPING_PORT:-3008}:3008'
+     depends_on:
+       postgres:
+         condition: service_healthy
+       rabbitmq:
+         condition: service_healthy
+       browserless:
+         condition: service_started
+     environment:
+       RABBITMQ_URL: ${RABBITMQ_URL}
+       RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
+       RABBITMQ_QUEUE_SCRAPING: scraping.task
+       RABBITMQ_QUEUE_NOTIFICATIONS: whatsapp_direct_messages
+       GATEWAY_URL: ${GATEWAY_URL:-http://gateway:3000}
+       GATEWAY_WEBHOOK_TOKEN: ${GATEWAY_WEBHOOK_TOKEN}
+       # Browserless Chrome connection
+       BROWSERLESS_WS_ENDPOINT: ws://browserless:3222
+       PUPPETEER_TIMEOUT: ${PUPPETEER_TIMEOUT:-30000}
+       PUPPETEER_MAX_POOL_SIZE: ${PUPPETEER_MAX_POOL_SIZE:-5}
+       PUPPETEER_HEADLESS: 'true'
+       RATE_LIMIT_DAILY: ${RATE_LIMIT_DAILY:-10}
+       RATE_LIMIT_WINDOW_HOURS: ${RATE_LIMIT_WINDOW_HOURS:-24}
+       LOG_LEVEL: info
+       NODE_ENV: production
+       POSTGRES_HOST: ${POSTGRES_HOST}
+       POSTGRES_PORT: ${POSTGRES_PORT}
+       POSTGRES_USER: ${POSTGRES_USER}
+       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+       SCRAPING_DATABASE_URL: ${SCRAPING_DATABASE_URL}
+       SERVICE_NAME: scraping
+     networks:
+       - microservices-network
 
 volumes:
+  postgres_data:
+  pgadmin_data:
   rabbitmq_data:
 
 networks:
-  default:
+  microservices-network:
     name: microservices-network
