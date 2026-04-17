@@ -324,23 +324,23 @@ services:
   # ─────────────────────────────────────────
   # Scraping Microservice
   # ─────────────────────────────────────────
-   # ─────────────────────────────────────────
-   # Browserless Chrome (for Puppeteer)
-   # ─────────────────────────────────────────
-   browserless:
-     image: browserless/chrome:latest
-     container_name: browserless-chrome
-     restart: unless-stopped
-     ports:
-       - '3222:3222'
-     environment:
-       PORT: 3222
-       TIMEOUT: 30000
-       CONNECTION_TIMEOUT: 30000
-     networks:
-       - microservices-network
+  # ─────────────────────────────────────────
+  # Browserless Chrome (for Puppeteer)
+  # ─────────────────────────────────────────
+  browserless:
+    image: browserless/chrome:latest
+    container_name: browserless-chrome
+    restart: unless-stopped
+    ports:
+      - '3222:3222'
+    environment:
+      PORT: 3222
+      TIMEOUT: 30000
+      CONNECTION_TIMEOUT: 30000
+    networks:
+      - microservices-network
 
-   scraping:
+  scraping:
      build:
        context: ./scrapping
        dockerfile: Dockerfile
