@@ -1,0 +1,10 @@
+﻿Service,Base Image,Lines,Multi-Stage,Non-Root User,Health Check,Est. Image Size,Security Score,Production Ready,Key Issues
+gateway,node:20-alpine,19,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+identity,node:20-alpine,42,YES,NO,NO,200MB,D+,NO,"Runs as root in production stage, no health check"
+whatsapp,node:20-alpine,19,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+slack,node:20-alpine,19,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+notion,node:20-alpine,19,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+instagram,node:20-alpine,12,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+tiktok,node:20-alpine,11,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+facebook,node:20-alpine,11,NO,NO,NO,250MB,F,NO,"No multi-stage build, runs as root, no health check"
+scrapping,node:20,32,NO,NO,NO,1800MB,D,NO,"Debian base (oversized), no multi-stage, runs as root, 1.8GB image"
