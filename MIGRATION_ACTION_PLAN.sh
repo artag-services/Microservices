@@ -1,0 +1,262 @@
+#!/bin/bash
+# Database Migration Action Plan
+# Execute these commands in order of priority
+
+echo "╔════════════════════════════════════════════════════════════════════════════════╗"
+echo "║         DATABASE SCHEMA AUDIT - MIGRATION ACTION PLAN                         ║"
+echo "║                   Generated: 2026-04-22                                       ║"
+echo "╚════════════════════════════════════════════════════════════════════════════════╝"
+echo ""
+
+# ──────────────────────────────────────────────────────────────────────────────────
+# 🔴 CRITICAL PRIORITY - EXECUTE IMMEDIATELY
+# ──────────────────────────────────────────────────────────────────────────────────
+
+echo "🔴 CRITICAL PRIORITY - Execute Immediately"
+echo "─────────────────────────────────────────────────────────────────────────────────"
+echo ""
+
+# Step 1: Notion
+echo "📌 STEP 1: Notion Service"
+echo "   Status: CRITICAL EMPTY (0/4 tables)"
+echo "   Commands:"
+echo "   ┌─ cd notion"
+echo "   ├─ npm run prisma:generate"
+echo "   ├─ npm run prisma:migrate"
+echo "   ├─ npm run prisma:studio  # Verify tables created"
+echo "   └─ cd .."
+echo ""
+echo "   Tables that will be created:"
+echo "      • days_off (legacy reference)"
+echo "      • inventory (legacy reference)"
+echo "      • n8n_vectors (legacy reference)"
+echo "      • NotionOperation (service-specific)"
+echo ""
+
+# Step 2: Slack
+echo "📌 STEP 2: Slack Service"
+echo "   Status: CRITICAL EMPTY (0/4 tables)"
+echo "   Commands:"
+echo "   ┌─ cd slack"
+echo "   ├─ npm run prisma:generate"
+echo "   ├─ npm run prisma:migrate"
+echo "   ├─ npm run prisma:studio  # Verify tables created"
+echo "   └─ cd .."
+echo ""
+echo "   Tables that will be created:"
+echo "      • days_off (legacy reference)"
+echo "      • inventory (legacy reference)"
+echo "      • n8n_vectors (legacy reference)"
+echo "      • SlackMessage (service-specific)"
+echo ""
+
+# Step 3: Scraping
+echo "📌 STEP 3: Scraping Service"
+echo "   Status: NO SCHEMA FILE - Cannot proceed without clarification"
+echo "   Investigation Steps:"
+echo "   ┌─ cd scrapping"
+echo "   ├─ ls -la                      # Check directory structure"
+echo "   ├─ grep -E 'prisma|typeorm|mikro' package.json"
+echo "   └─ ls -la prisma/ 2>/dev/null || echo 'No prisma directory'"
+echo ""
+echo "   If using Prisma:"
+echo "      • Initialize Prisma: npx prisma init"
+echo "      • Create schema.prisma with appropriate models"
+echo "      • Run: npm run prisma:migrate"
+echo ""
+echo "   If using different ORM:"
+echo "      • Document the ORM used"
+echo "      • Ensure database is initialized"
+echo "      • Update architecture documentation"
+echo ""
+
+# ──────────────────────────────────────────────────────────────────────────────────
+# 🟠 HIGH PRIORITY - THIS WEEK
+# ──────────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "🟠 HIGH PRIORITY - This Week"
+echo "─────────────────────────────────────────────────────────────────────────────────"
+echo ""
+
+# Step 4: Gateway
+echo "📌 STEP 4: Gateway Service"
+echo "   Status: INCOMPLETE (2/10 tables)"
+echo "   Missing: Conversation system (8 tables)"
+echo "   Commands:"
+echo "   ┌─ cd gateway"
+echo "   ├─ npm run prisma:generate"
+echo "   ├─ npm run prisma:migrate"
+echo "   ├─ npm run prisma:studio  # Verify all 10 tables created"
+echo "   └─ cd .."
+echo ""
+echo "   Tables that will be created:"
+echo "      • Conversation"
+echo "      • ConversationMessage"
+echo "      • ConversationAIResponse"
+echo "      • User"
+echo "      • UserIdentity"
+echo "      • AIResponse"
+echo "      • AIResponseChunk"
+echo "      • N8NRateLimit"
+echo ""
+
+# Step 5: Identity Schema Review
+echo "📌 STEP 5: Identity Service - SCHEMA REVIEW FIRST"
+echo "   Status: INCOMPLETE (4/18 tables, 0/12 enums)"
+echo "   ⚠️  ISSUE: Schema contains models from OTHER services"
+echo "   Action: REVIEW BEFORE MIGRATION"
+echo ""
+echo "   Current situation:"
+echo "      • 4 core identity tables present in DB ✓"
+echo "      • 14 foreign service models in schema (should NOT be here)"
+echo "      • 0 foreign tables in DB ✗"
+echo ""
+echo "   Recommendation:"
+echo "      1. Review identity_db schema"
+echo "      2. Remove all foreign models (AIResponse, Message, etc.)"
+echo "      3. Keep only these 4 core tables:"
+echo "         - User"
+echo "         - UserIdentity"
+echo "         - UserContact"
+echo "         - NameHistory"
+echo ""
+echo "   After fixing schema:"
+echo "   ┌─ cd identity"
+echo "   ├─ npm run prisma:generate"
+echo "   ├─ npm run prisma:migrate"
+echo "   ├─ npm run prisma:studio  # Verify 4 core tables"
+echo "   └─ cd .."
+echo ""
+
+# ──────────────────────────────────────────────────────────────────────────────────
+# 🟡 MEDIUM PRIORITY - NEXT WEEK
+# ──────────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "🟡 MEDIUM PRIORITY - Next Week"
+echo "─────────────────────────────────────────────────────────────────────────────────"
+echo ""
+
+# Step 6: Facebook
+echo "📌 STEP 6: Facebook Service"
+echo "   Status: INCOMPLETE (1/4 tables)"
+echo "   Missing: 3 legacy reference tables"
+echo "   Commands:"
+echo "   ┌─ cd facebook"
+echo "   ├─ npm run prisma:generate"
+echo "   ├─ npm run prisma:migrate"
+echo "   ├─ npm run prisma:studio  # Verify all 4 tables created"
+echo "   └─ cd .."
+echo ""
+echo "   Tables that will be created:"
+echo "      • days_off (legacy reference)"
+echo "      • inventory (legacy reference)"
+echo "      • n8n_vectors (legacy reference)"
+echo "      [FbMessage already exists]"
+echo ""
+
+# Step 7: TikTok
+echo "📌 STEP 7: TikTok Service"
+echo "   Status: INCOMPLETE (1/4 tables)"
+echo "   Missing: 3 legacy reference tables"
+echo "   Commands:"
+echo "   ┌─ cd tiktok"
+echo "   ├─ npm run prisma:generate"
+echo "   ├─ npm run prisma:migrate"
+echo "   ├─ npm run prisma:studio  # Verify all 4 tables created"
+echo "   └─ cd .."
+echo ""
+echo "   Tables that will be created:"
+echo "      • days_off (legacy reference)"
+echo "      • inventory (legacy reference)"
+echo "      • n8n_vectors (legacy reference)"
+echo "      [TikTokPost already exists]"
+echo ""
+
+# ──────────────────────────────────────────────────────────────────────────────────
+# ✅ VERIFICATION (No Changes Needed)
+# ──────────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "✅ VERIFICATION - No Migration Needed (Already Synced)"
+echo "─────────────────────────────────────────────────────────────────────────────────"
+echo ""
+
+echo "📌 STEP 8: WhatsApp Service (Already Synced ✓)"
+echo "   Status: PRODUCTION READY (9/9 tables, 5/5 enums)"
+echo "   Action: Verify no migration needed"
+echo "   Command: cd whatsapp && npm run prisma:studio"
+echo ""
+
+echo "📌 STEP 9: Instagram Service (Already Synced ✓)"
+echo "   Status: PRODUCTION READY (11/11 tables, 5/5 enums)"
+echo "   Action: Verify no migration needed"
+echo "   Command: cd instagram && npm run prisma:studio"
+echo ""
+
+# ──────────────────────────────────────────────────────────────────────────────────
+# SUMMARY AND NEXT STEPS
+# ──────────────────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "╔════════════════════════════════════════════════════════════════════════════════╗"
+echo "║                          SUMMARY AND NEXT STEPS                                ║"
+echo "╚════════════════════════════════════════════════════════════════════════════════╝"
+echo ""
+
+echo "📊 Current State:"
+echo "   • Total Services: 9"
+echo "   • Fully Synced: 2 (whatsapp, instagram)"
+echo "   • Needs Migration: 5 (gateway, notion, slack, facebook, tiktok)"
+echo "   • Requires Investigation: 1 (identity schema issue)"
+echo "   • Unknown: 1 (scraping - no schema)"
+echo ""
+
+echo "🎯 Migration Timeline:"
+echo ""
+echo "   Week 1 (CRITICAL):"
+echo "      □ Notion migration"
+echo "      □ Slack migration"
+echo "      □ Scraping investigation"
+echo ""
+echo "   Week 1-2 (HIGH):"
+echo "      □ Identity schema review"
+echo "      □ Identity migration"
+echo "      □ Gateway migration"
+echo ""
+echo "   Week 2-3 (MEDIUM):"
+echo "      □ Facebook migration"
+echo "      □ TikTok migration"
+echo ""
+echo "   Week 3 (VERIFICATION):"
+echo "      □ Test all services"
+echo "      □ Run integration tests"
+echo "      □ Verify data integrity"
+echo ""
+
+echo "⚠️  Important Notes:"
+echo "   1. Always backup database before running migrations"
+echo "   2. Run migrations in staging environment first"
+echo "   3. Verify each migration with 'npm run prisma:studio'"
+echo "   4. Check service logs after migration for any errors"
+echo "   5. Test service functionality thoroughly after migration"
+echo ""
+
+echo "📌 Rollback Instructions (if needed):"
+echo "   1. Most recent migration: npx prisma migrate resolve --rolled-back <migration_name>"
+echo "   2. Restore from backup if available"
+echo "   3. Document any data loss"
+echo ""
+
+echo "✅ Success Criteria:"
+echo "   • All services have their expected tables"
+echo "   • All enums properly created"
+echo "   • No NULL/missing constraints"
+echo "   • Services start without errors"
+echo "   • Integration tests pass"
+echo ""
+
+echo "╔════════════════════════════════════════════════════════════════════════════════╗"
+echo "║  Generated: 2026-04-22 | Status: Ready for Execution                          ║"
+echo "╚════════════════════════════════════════════════════════════════════════════════╝"

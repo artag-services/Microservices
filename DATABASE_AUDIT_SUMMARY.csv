@@ -1,0 +1,10 @@
+Service,Database,Expected Tables,Actual Tables,Missing Tables,Missing Count,Missing %,Expected Enums,Actual Enums,Missing Enums,Missing Enums %,Overall Status,Priority,Notes
+Gateway,gateway_db,10,2,Conversation|ConversationMessage|ConversationAIResponse|N8NRateLimit|User|UserIdentity|AIResponse|AIResponseChunk,8,80%,6,2,ConvStatus|AIResponseStatus|ChunkStatus|MessageSender,67%,⚠️ Incomplete,HIGH,Conversation system broken - missing 8 core tables
+Identity,identity_db,18,4,AIResponse|AIResponseChunk|N8NRateLimit|Message|WaMessage|SlackMessage|NotionOperation|IgMessage|TikTokPost|FbMessage|EmailMessage|Conversation|ConversationMessage|ConversationAIResponse,14,78%,12,0,MessageStatus|WaMessageStatus|SlackMessageStatus|NotionOpStatus|IgMessageStatus|TikTokPostStatus|FbMessageStatus|EmailStatus|AIResponseStatus|ChunkStatus|ConvStatus|MessageSender,100%,⚠️ Incomplete,HIGH,Schema contains non-identity models - architectural issue. Only 4 core identity tables present.
+WhatsApp,whatsapp_db,9,9,None,0,0%,5,5,None,0%,✅ Fully Synced,NONE,Production-ready - all tables and enums present
+Instagram,instagram_db,11,11,None,0,0%,5,5,None,0%,✅ Fully Synced,NONE,Production-ready - all tables and enums present
+Notion,notion_db,4,0,days_off|inventory|n8n_vectors|NotionOperation,4,100%,1,0,NotionOpStatus,100%,🔴 CRITICAL,CRITICAL,Database completely empty - no tables migrated
+Slack,slack_db,4,0,days_off|inventory|n8n_vectors|SlackMessage,4,100%,1,0,SlackMessageStatus,100%,🔴 CRITICAL,CRITICAL,Database completely empty - no tables migrated
+Facebook,facebook_db,4,1,days_off|inventory|n8n_vectors,3,75%,1,1,None,0%,⚠️ Incomplete,MEDIUM,Primary table present (FbMessage) but legacy reference tables missing
+TikTok,tiktok_db,4,1,days_off|inventory|n8n_vectors,3,75%,1,1,None,0%,⚠️ Incomplete,MEDIUM,Primary table present (TikTokPost) but legacy reference tables missing
+Scraping,scraping_db,Unknown,0,Unknown,Unknown,Unknown,Unknown,0,Unknown,Unknown,❌ No Schema,N/A,No Prisma schema file - cannot determine expected state
