@@ -58,18 +58,19 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────────
-# STEP 3: Run Database Migrations
+# STEP 3: Sync Database Schema (idempotent: creates missing tables,
+#         aligns drifted columns — `prisma db push --accept-data-loss`)
 # ─────────────────────────────────────────────────────────────────
-echo -e "\n${YELLOW}[STEP 3/3]${NC} Running database migrations..."
+echo -e "\n${YELLOW}[STEP 3/3]${NC} Syncing database schema with prisma db push..."
 
 if [ -f "prisma/schema.prisma" ]; then
-  if pnpm prisma:migrate 2>&1 | sed 's/^/  /'; then
-    echo -e "${GREEN}✅ Database migrations completed successfully!${NC}"
+  if pnpm prisma:push 2>&1 | sed 's/^/  /'; then
+    echo -e "${GREEN}✅ Database schema is in sync with schema.prisma!${NC}"
   else
-    echo -e "${RED}⚠️  Migration encountered issues (continuing anyway)${NC}"
+    echo -e "${RED}⚠️  Schema push encountered issues (continuing anyway)${NC}"
   fi
 else
-  echo -e "${BLUE}ℹ️  No Prisma schema found (skipping migrations)${NC}"
+  echo -e "${BLUE}ℹ️  No Prisma schema found (skipping schema sync)${NC}"
 fi
 
 # ─────────────────────────────────────────────────────────────────
