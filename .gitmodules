@@ -28,3 +28,6 @@
 [submodule "scheduler"]
 	path = scheduler
 	url = https://github.com/artag-services/scheduler.git
+[submodule "email"]
+	path = email
+	url = https://github.com/artag-services/email-service.git

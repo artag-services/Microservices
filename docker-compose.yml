@@ -402,6 +402,66 @@ services:
        - microservices-network
 
   # ─────────────────────────────────────────
+  # Mailpit — local SMTP capture for dev (web UI :8025, SMTP :1025)
+  # Activate with `docker-compose --profile dev up`
+  # ─────────────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    profiles: [dev]
+    networks:
+      - microservices-network
+
+  # ─────────────────────────────────────────
+  # Email Microservice (Resend / SMTP via adapter)
+  # ─────────────────────────────────────────
+  email:
+    build:
+      context: ./email
+      dockerfile: Dockerfile
+    container_name: email-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${EMAIL_PORT:-3007}:3007'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
+      DATABASE_URL: ${EMAIL_DATABASE_URL}
+      EMAIL_DATABASE_URL: ${EMAIL_DATABASE_URL}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-resend}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET}
+      EMAIL_FROM: ${EMAIL_FROM}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME}
+      EMAIL_SMTP_HOST: ${EMAIL_SMTP_HOST:-mailpit}
+      EMAIL_SMTP_PORT: ${EMAIL_SMTP_PORT:-1025}
+      EMAIL_SMTP_USER: ${EMAIL_SMTP_USER}
+      EMAIL_SMTP_PASS: ${EMAIL_SMTP_PASS}
+      EMAIL_SMTP_SECURE: ${EMAIL_SMTP_SECURE:-false}
+      PORT: ${EMAIL_PORT:-3007}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: email
+    networks:
+      - microservices-network
+
+  # ─────────────────────────────────────────
   # Scheduler Microservice (BullMQ + Redis)
   # ─────────────────────────────────────────
   scheduler:
