@@ -33,6 +33,9 @@ CREATE DATABASE email_db;
 -- Scraping Service Database
 CREATE DATABASE scraping_db;
 
+-- Scheduler Service Database
+CREATE DATABASE scheduler_db;
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- All databases created successfully
 -- Each microservice now has its own isolated PostgreSQL database

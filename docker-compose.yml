@@ -46,6 +46,26 @@ services:
       - microservices-network
 
   # ─────────────────────────────────────────
+  # Redis (BullMQ backend for scheduler)
+  # ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  # ─────────────────────────────────────────
   # Message Broker
   # ─────────────────────────────────────────
   rabbitmq:
@@ -381,10 +401,46 @@ services:
      networks:
        - microservices-network
 
+  # ─────────────────────────────────────────
+  # Scheduler Microservice (BullMQ + Redis)
+  # ─────────────────────────────────────────
+  scheduler:
+    build:
+      context: ./scheduler
+      dockerfile: Dockerfile
+    container_name: scheduler-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${SCHEDULER_PORT:-3009}:3009'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
+      DATABASE_URL: ${SCHEDULER_DATABASE_URL}
+      SCHEDULER_DATABASE_URL: ${SCHEDULER_DATABASE_URL}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      PORT: ${SCHEDULER_PORT:-3009}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: scheduler
+    networks:
+      - microservices-network
+
 volumes:
   postgres_data:
   pgadmin_data:
   rabbitmq_data:
+  redis_data:
 
 networks:
   microservices-network:

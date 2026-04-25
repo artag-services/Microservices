@@ -25,3 +25,6 @@
 [submodule "tiktok"]
 	path = tiktok
 	url = https://github.com/artag-services/tiktok-service
+[submodule "scheduler"]
+	path = scheduler
+	url = https://github.com/artag-services/scheduler.git
