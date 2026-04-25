@@ -9,7 +9,7 @@ This is a composition repo of Git submodules. Every service follows the same blu
 
 ## The two laws
 
-1. **Services NEVER communicate directly with each other.** No HTTP, no gRPC, no shared DB. The only allowed inter-service channel is the RabbitMQ topic exchange `channels`. The gateway is the sole HTTP entry point for clients.
+1. **Services NEVER communicate directly with each other.** No HTTP, no gRPC, no shared DB. The only allowed inter-service channel is the RabbitMQ topic exchange `channels`. The gateway is the sole HTTP entry point for clients **and the sole receiver of inbound webhooks** from external providers (Resend, Notion, Meta, Slack, etc.). The gateway validates signatures, then publishes a `channels.<service>.events.<thing>` message; the destination microservice consumes it. Never expose a microservice's HTTP port to an external provider.
 
 2. **Every service is a separate Git submodule.** Its remote is `https://github.com/artag-services/<name>.git` (or `<name>-service.git` for older ones — match what the user gives you, don't invent). It has its own `package.json`, Dockerfile, `entrypoint.sh`, and Prisma schema.
 
