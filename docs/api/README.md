@@ -15,7 +15,8 @@ Localmente: `http://localhost:3000/api`. El prefijo `/api` lo agrega el gateway 
 | Área | Doc | Endpoints |
 |---|---|---|
 | Identidad de usuarios | [identity.md](./identity.md) | `/v1/identity/*` |
-| Envío de mensajes (WhatsApp/IG/Slack/etc.) | [messages.md](./messages.md) | `/v1/messages/*` |
+| Envío de mensajes (genérico) | [messages.md](./messages.md) | `/v1/messages/*` |
+| **📚 Por canal** (WhatsApp / Slack / Notion / Instagram / TikTok / Facebook) | [channels/](./channels/) | guías prácticas con ejemplos copy-paste por canal |
 | Conversaciones (chat rooms) | [conversations.md](./conversations.md) | `/v1/conversations/*` ⚠️ ver nota |
 | Web scraping | [scraping.md](./scraping.md) | `/v1/scraping/*` |
 | Email transaccional | [email.md](./email.md) | `/v1/emails/*` |
