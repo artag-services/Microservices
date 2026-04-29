@@ -36,6 +36,9 @@ CREATE DATABASE scraping_db;
 -- Scheduler Service Database
 CREATE DATABASE scheduler_db;
 
+-- Agent Service Database (AI orchestrator)
+CREATE DATABASE agent_db;
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- All databases created successfully
 -- Each microservice now has its own isolated PostgreSQL database

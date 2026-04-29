@@ -31,3 +31,6 @@
 [submodule "email"]
 	path = email
 	url = https://github.com/artag-services/email-service.git
+[submodule "agent"]
+	path = agent
+	url = https://github.com/artag-services/agent.git

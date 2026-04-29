@@ -465,6 +465,49 @@ services:
       - microservices-network
 
   # ─────────────────────────────────────────
+  # Agent Microservice (AI orchestrator — vendor-neutral)
+  # ─────────────────────────────────────────
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: agent-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${AGENT_PORT:-3011}:3011'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
+      DATABASE_URL: ${AGENT_DATABASE_URL}
+      AGENT_DATABASE_URL: ${AGENT_DATABASE_URL}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      AI_PROVIDER: ${AI_PROVIDER:-anthropic}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_API_KEYS: ${ANTHROPIC_API_KEYS}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-haiku-4-5}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_KEYS: ${OPENAI_API_KEYS}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      AGENT_CONVERSATION_TTL_MS: ${AGENT_CONVERSATION_TTL_MS:-2592000000}
+      PORT: ${AGENT_PORT:-3011}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SERVICE_NAME: agent
+    networks:
+      - microservices-network
+
+  # ─────────────────────────────────────────
   # Scheduler Microservice (BullMQ + Redis)
   # ─────────────────────────────────────────
   scheduler:
