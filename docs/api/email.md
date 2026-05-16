@@ -1,8 +1,23 @@
-# Email — `/v1/emails/*`
+# Email — `/v1/emails/*` + inbound
 
-Envío de emails transaccionales. El backend usa un patrón de **adapters**: en producción manda con [Resend](https://resend.com), en dev podés capturar con [Mailpit](https://mailpit.axllent.org/) sin gastar créditos. Tracking completo de lifecycle (sent → delivered → opened → clicked) vía webhooks.
+Envío de emails transaccionales **y** recepción de inbound. El backend usa un patrón de **adapters**: en producción manda con [Resend](https://resend.com) (multi-dominio), en dev podés capturar con [Mailpit](https://mailpit.axllent.org/) sin gastar créditos. Tracking completo de lifecycle (sent → delivered → opened → clicked) vía webhooks.
 
 **Backend:** email-service (puerto 3007). Provider activo: `EMAIL_PROVIDER=resend` en `.env`.
+
+## Multi-domain
+
+El servicio soporta múltiples dominios en paralelo (cada uno con su propia API key de Resend y su signing secret). La config va en `EMAIL_DOMAINS_CONFIG` del `.env`:
+
+```json
+{
+  "domains": [
+    { "domain": "artagdev.com.co",   "apiKey": "re_xxx", "webhookSecret": "whsec_xxx" },
+    { "domain": "lumenxlabs.com.co", "apiKey": "re_yyy", "webhookSecret": "whsec_yyy" }
+  ]
+}
+```
+
+Cuando hacés `POST /v1/emails`, el dominio se infiere del `from` (`soporte@artagdev.com.co` → usa esa API key). Si omitís el `from`, usa el primer dominio de la lista. Para forzar uno, ponelo en `from`.
 
 ## Endpoints
 
@@ -158,7 +173,65 @@ El frontend no se entera directo del webhook — tenés que pollear `GET /v1/ema
 - ❌ Templates con variables tipo `Hola {{nombre}}`. Tenés que generar el HTML en el frontend o backend antes de mandar.
 - ❌ A/B testing nativo.
 - ❌ Listas / contactos. Esto es transaccional, no marketing — para newsletters usá un servicio aparte (Loops, Mailchimp, ...).
-- ❌ Recibir emails (inbound). Para eso hace falta DNS MX + Cloudflare Email Routing → webhook al gateway. No está implementado todavía.
+- ❌ Cancelar webhooks de inbound (los maneja el provider/Cloudflare)
+
+---
+
+## Inbound (recibir emails)
+
+El stack recibe emails entrantes vía **Cloudflare Email Workers** → webhook al gateway → RabbitMQ → email-service persiste. Cada dominio configurado tiene su propio worker.
+
+### Flujo
+
+```
+sender@gmail.com
+   ↓ (MX records)
+Cloudflare Email Routing
+   ↓ (Worker per domain)
+POST https://micro.artagdev.com.co/api/webhooks/email/inbound
+   ↓ (HMAC verified)
+RabbitMQ: channels.email.inbound.received
+   ↓
+email-service persists + identity.resolve
+   ↓
+SSE: event "email:inbound" published in events bus
+```
+
+### Para que aparezca en el frontend
+
+Suscribite por SSE (ver [events.md](./events.md)):
+
+```js
+const es = new EventSource('/api/v1/events?topics=email:*')
+es.addEventListener('email:inbound', (e) => {
+  const { id, fromAddress, toAddress, subject, textBody, htmlBody } = JSON.parse(e.data)
+  showInboxNotification({ id, fromAddress, subject })
+})
+```
+
+### Endpoint para listar/leer inbound
+
+Mismos endpoints que outbound — el `EmailMessage` tiene un campo `direction`:
+
+```http
+GET /api/v1/emails?direction=inbound&limit=50
+GET /api/v1/emails/:id
+```
+
+| Campo extra en inbound | Notas |
+|---|---|
+| `direction` | `"inbound"` |
+| `domain` | el dominio que recibió (`artagdev.com.co`, ...) |
+| `toAlias` | la parte local del `to` (`hola@`) |
+| `fromAddress` / `fromName` | quién mandó |
+| `headers` | mapa de headers completos del RFC 5322 |
+| `attachments` | `[{ name, contentType, size }]` (sólo metadata, no el binario) |
+
+### Configuración del lado Cloudflare
+
+Ver [docs/cloudflare-email-worker.md](../cloudflare-email-worker.md) para el código del worker + DNS + secret.
+
+---
 
 ## Errores comunes
 

@@ -19,8 +19,10 @@ Localmente: `http://localhost:3000/api`. El prefijo `/api` lo agrega el gateway 
 | **📚 Por canal** (WhatsApp / Slack / Notion / Instagram / TikTok / Facebook) | [channels/](./channels/) | guías prácticas con ejemplos copy-paste por canal |
 | Conversaciones (chat rooms) | [conversations.md](./conversations.md) | `/v1/conversations/*` ⚠️ ver nota |
 | Web scraping | [scraping.md](./scraping.md) | `/v1/scraping/*` |
-| Email transaccional | [email.md](./email.md) | `/v1/emails/*` |
+| Email transaccional + inbound | [email.md](./email.md) | `/v1/emails/*` |
 | Tareas programadas | [scheduler.md](./scheduler.md) | `/v1/schedules/*` |
+| **Agente conversacional con tools** | [agent.md](./agent.md) | `/v1/agent/*` (chat, conversations, memories) |
+| Eventos real-time (SSE) | [events.md](./events.md) | `/v1/events` ← una sola conexión cubre TODO |
 | Webhooks (proveedores externos) | [webhooks.md](./webhooks.md) | `/webhooks/*` — **NO usar desde frontend** |
 
 ## Convenciones que aplican a TODO el API

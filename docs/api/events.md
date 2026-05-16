@@ -21,10 +21,12 @@ data: {"emailId":"xyz",...}
 | Topic | Significado |
 |---|---|
 | `scraping:abc-uuid` | eventos de UN scraping específico |
-| `email:xyz-uuid` | eventos de UN email específico |
+| `email:xyz-uuid` | eventos de UN email específico (outbound) |
 | `scheduler:task-uuid` | eventos de UNA tarea programada |
+| `agent:conv-uuid` | eventos de UNA conversación con el agente (streaming + tool-use) |
 | `scraping:*` | TODOS los eventos de scraping (debug / dashboard) |
-| `email:*` | TODOS los eventos de email |
+| `email:*` | TODOS los eventos de email (incluye **inbound** + outbound) |
+| `agent:*` | TODOS los eventos del agente (cuidado: streaming es muy verboso) |
 | `*` | TODOS los eventos del sistema (use sparingly) |
 
 Múltiples topics separados por coma:
@@ -44,17 +46,34 @@ GET /api/v1/events?topics=scraping:abc,scraping:def,email:xyz
 | `scraping:completed` | Scraping exitoso | `{ jobId, url, success: true, data: {...}, durationMs, ... }` |
 | `scraping:failed` | Error o timeout | `{ jobId, url, success: false, error: "...", ... }` |
 
-### Email
+### Email — outbound
 
 | `event` | Cuándo | Payload |
 |---|---|---|
-| `email.sent` / `email.delivered` / `email.bounced` / etc. | Cuando llega el webhook de Resend | `{ emailId, providerMessageId, type, occurredAt, ... }` |
+| `email.sent` / `email.delivered` / `email.bounced` / `email.opened` / `email.clicked` / `email.complained` | Cuando llega el webhook de Resend | `{ emailId, providerMessageId, type, occurredAt, ... }` |
+
+### Email — inbound
+
+| `event` | Cuándo | Payload |
+|---|---|---|
+| `email:inbound` | Cuando llega un email entrante (Cloudflare Email Worker → gateway) | `{ id, domain, toAddress, toAlias, fromAddress, fromName, subject, textBody, htmlBody, headers, attachments }` |
 
 ### Scheduler
 
 | `event` | Cuándo | Payload |
 |---|---|---|
 | `scheduler:task-fired` | Cuando una tarea programada dispara | `{ taskId, executionId, status, firedAt, publishedTo }` |
+
+### Agent
+
+| `event` | Cuándo | Payload |
+|---|---|---|
+| `agent:message-started` | Inicio de respuesta del agente | `{ conversationId, messageId, model }` |
+| `agent:text-delta` | Cada chunk de texto en streaming | `{ conversationId, messageId, delta }` |
+| `agent:tool-use-start` | Antes de invocar una tool | `{ conversationId, toolName, input }` |
+| `agent:tool-use-end` | Resultado de la tool | `{ conversationId, toolName, output, error? }` |
+| `agent:message-completed` | Respuesta final lista | `{ conversationId, messageId, finalText, usage }` |
+| `agent:error` | Falla del provider o tool fatal | `{ conversationId, error }` |
 
 ## Ejemplo en el frontend (vanilla JS)
 
