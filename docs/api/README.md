@@ -22,6 +22,7 @@ Localmente: `http://localhost:3000/api`. El prefijo `/api` lo agrega el gateway 
 | Email transaccional + inbound | [email.md](./email.md) | `/v1/emails/*` |
 | Tareas programadas | [scheduler.md](./scheduler.md) | `/v1/schedules/*` |
 | **Agente conversacional con tools** | [agent.md](./agent.md) | `/v1/agent/*` (chat, conversations, memories) |
+| **Lecturas cross-service (CQRS read model)** | [query.md](./query.md) | `/v1/query/*` (users, conversations, messages, search) |
 | Eventos real-time (SSE) | [events.md](./events.md) | `/v1/events` ← una sola conexión cubre TODO |
 | Webhooks (proveedores externos) | [webhooks.md](./webhooks.md) | `/webhooks/*` — **NO usar desde frontend** |
 

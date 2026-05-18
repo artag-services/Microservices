@@ -34,3 +34,6 @@
 [submodule "agent"]
 	path = agent
 	url = https://github.com/artag-services/agent.git
+[submodule "sync"]
+	path = sync
+	url = https://github.com/artag-services/sync-service.git
