@@ -28,6 +28,7 @@ Localmente: `http://localhost:3000/api`. El prefijo `/api` lo agrega el gateway 
 | **Agente con tools** | [agent.md](./agent.md) | `/v1/agent/{chat,memories}` + `GET /v1/agent/conversations/:id` (detalle con tool blocks). Resto via query. |
 | Webhooks (proveedores externos) | [webhooks.md](./webhooks.md) | `/webhooks/*` — **NO usar desde frontend** |
 | Frontend Next.js | [frontend-nextjs.md](./frontend-nextjs.md) | guía con hooks, Socket.IO, SSE, ejemplo end-to-end |
+| **🆕 Migración para el front (cambios recientes)** | [MIGRATION.md](./MIGRATION.md) | qué se rompió, qué se movió, cómo migrar las llamadas existentes |
 
 ## El cambio importante (mayo 2026)
 

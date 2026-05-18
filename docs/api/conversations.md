@@ -2,11 +2,7 @@
 
 Sistema de "salas de conversación" — agrupa los mensajes intercambiados con un usuario en un canal específico. Una conversación tiene historial, estado (abierta/cerrada), agente asignado, configuración de IA, etc. Pensado para casos tipo CRM/helpdesk.
 
-> ⚠️ **Bug conocido en el path**: el controller declara `@Controller('api/v1/conversations')` pero el gateway ya tiene prefijo global `api`. La URL real queda como **`/api/api/v1/conversations`** (con `api` duplicado). Esto es un bug en el código del gateway, no de la doc. El día que se arregle el prefijo, será `/api/v1/conversations` como el resto.
-
 ## Endpoints
-
-> Todos los ejemplos abajo asumen el path correcto cuando se arregle. Reemplazá por `/api/api/v1/conversations` mientras tanto.
 
 > 📖 **Las lecturas de conversaciones se movieron al read model:**
 > - Lista cross-channel: [`GET /v1/query/conversations?channel=whatsapp`](./query.md#get-v1queryconversations)

@@ -176,6 +176,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
       SERVICE_NAME: identity
     networks:
       - microservices-network
@@ -209,6 +210,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
       SERVICE_NAME: whatsapp
     networks:
       - microservices-network
@@ -240,6 +242,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
       SERVICE_NAME: slack
     networks:
       - microservices-network
@@ -303,6 +306,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
       SERVICE_NAME: instagram
     networks:
       - microservices-network
@@ -431,6 +435,7 @@ services:
        POSTGRES_PORT: ${POSTGRES_PORT}
        POSTGRES_USER: ${POSTGRES_USER}
        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+       ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
        SERVICE_NAME: scraping
      networks:
        - microservices-network
@@ -495,6 +500,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
       SERVICE_NAME: email
     networks:
       - microservices-network
@@ -539,6 +545,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
       SERVICE_NAME: agent
     networks:
       - microservices-network

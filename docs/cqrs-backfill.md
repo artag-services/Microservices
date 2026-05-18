@@ -147,14 +147,47 @@ docker-compose exec mongo mongosh -u admin -p mongopass123 \
 
 ## Estado de implementación
 
-| Servicio | Endpoint `/admin/backfill-events` | Implementado |
+| Servicio | Endpoint `/admin/backfill-events` | Eventos emitidos |
 |---|---|---|
-| identity | listo para copiar el snippet de arriba | ❌ |
-| whatsapp | misma idea | ❌ |
-| instagram | misma idea | ❌ |
-| scrapping | misma idea | ❌ |
-| email | misma idea | ❌ |
-| slack | misma idea | ❌ |
-| agent | misma idea | ❌ |
+| identity (port 3010) | ✅ | `data.identity.user.linked` (per identity), `data.identity.user.deleted` (per soft-deleted user) |
+| whatsapp (port 3001) | ✅ | `data.whatsapp.conversation.created` (per conv), `data.whatsapp.message.received` (per USER msg) |
+| instagram (port 3004) | ✅ | `data.instagram.conversation.created`, `data.instagram.message.received` |
+| slack (port 3002) | ✅ | `data.slack.message.sent` (per outbound msg) |
+| scrapping (port 3008) | ✅ | `data.scraping.task.{completed,failed}` (skips QUEUED/RUNNING) |
+| email (port 3007) | ✅ | `data.email.message.sent` (per outbound, all lifecycle dates in one event), `data.email.message.received` (per inbound) |
+| agent (port 3011) | ✅ | `data.agent.conversation.{created,deleted}`, `data.agent.message.received` (per USER), `data.agent.message.sent` (per FINAL ASSISTANT) |
 
-Cuando se implementen, marcar en esta tabla.
+## Comando todo-en-uno
+
+```bash
+# Desde la raíz del repo, después de setear ADMIN_BACKFILL_TOKEN en .env
+TOKEN=$(grep ADMIN_BACKFILL_TOKEN .env | cut -d= -f2)
+
+for entry in identity:3010 whatsapp:3001 instagram:3004 slack:3002 scrapping:3008 email:3007 agent:3011; do
+  name="${entry%:*}"
+  port="${entry#*:}"
+  echo "== $name =="
+  curl -s -X POST "http://localhost:$port/admin/backfill-events" \
+    -H "X-Admin-Token: $TOKEN" | jq .
+done
+```
+
+Cada llamada devuelve `{ service, scanned, published, durationMs }`. Es **idempotente** — re-ejecutar es seguro.
+
+## Apagar el endpoint después
+
+Cuando termines el backfill, **borrá** o rotá la `ADMIN_BACKFILL_TOKEN` del `.env` para invalidarla. El guard hace fail-closed si la var está vacía, así que el endpoint queda inaccesible automáticamente sin tener que tocar código.
+
+```bash
+# En el .env del server:
+ADMIN_BACKFILL_TOKEN=
+
+docker-compose restart identity whatsapp instagram slack scraping email agent
+```
+
+Verificar que está cerrado:
+```bash
+curl -i -X POST http://localhost:3010/admin/backfill-events
+# HTTP/1.1 401 Unauthorized
+# {"message":"Admin endpoints disabled (no token configured)"}
+```
