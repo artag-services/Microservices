@@ -69,7 +69,12 @@ services:
   # MongoDB (CQRS Read Model — Sync Service)
   # ─────────────────────────────────────────
   mongo:
-    image: mongo:7
+    # ⚠️ mongo:4.4 (NOT 5+) — MongoDB 5+ requires AVX CPU instructions,
+    # which some remote servers / older VPS hosts don't expose.
+    # 4.4 is the last version without that requirement.
+    # Symptom on incompatible CPUs: "Illegal instruction (core dumped)".
+    # Prisma 5 fully supports 4.4 for CRUD/upsert (no cross-doc transactions used here).
+    image: mongo:4.4
     container_name: mongo
     restart: unless-stopped
     ports:
@@ -80,7 +85,8 @@ services:
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      # mongosh is mongo:5+; use the older `mongo` shell for 4.4
+      test: echo 'db.runCommand("ping").ok' | mongo --quiet
       interval: 10s
       timeout: 5s
       retries: 5

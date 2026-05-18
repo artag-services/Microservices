@@ -35,8 +35,10 @@ UIs disponibles después de levantar:
 | `scrapping` | 3008 | Web scraping con Puppeteer |
 | `scheduler` | 3009 | Tareas programadas (BullMQ + Redis) |
 | `identity` | 3010 | Unificación de identidades cross-canal |
+| `agent` | 3011 | Orquestador AI (Anthropic / OpenAI) |
+| `sync` | 3012 | CQRS Read Model — MongoDB |
 
-Más infra: PostgreSQL (puerto 5432), RabbitMQ (5672), Redis (6379), Browserless Chrome (3222).
+Más infra: PostgreSQL (puerto 5432), RabbitMQ (5672), Redis (6379), **MongoDB (27017)**, Browserless Chrome (3222).
 
 ## Stack
 
@@ -44,6 +46,7 @@ Más infra: PostgreSQL (puerto 5432), RabbitMQ (5672), Redis (6379), Browserless
 - **pnpm** (lockfile = `pnpm-lock.yaml`)
 - **Prisma 5** — schema y DB por servicio
 - **PostgreSQL** — una base por servicio (`<servicio>_db`)
+- **MongoDB 7** — read model desnormalizado (CQRS)
 - **RabbitMQ** — exchange `channels` (topic), backbone de mensajería
 - **Redis** — backend de BullMQ para el scheduler
 - **Docker Compose** — orquestación local
@@ -51,32 +54,34 @@ Más infra: PostgreSQL (puerto 5432), RabbitMQ (5672), Redis (6379), Browserless
 ## Arquitectura en una imagen
 
 ```
-        ┌──────────┐
-        │ Frontend │
-        └────┬─────┘
-             │ HTTPS
-             ▼
-        ┌──────────┐    ┌─────────────────────────────┐
-        │  Gateway │ ←─ │ Webhooks externos           │
-        │ (HTTP)   │    │ (Resend, Meta, Slack, etc.) │
-        └────┬─────┘    └─────────────────────────────┘
-             │
-             │ publish/consume
-             ▼
-        ┌──────────┐
-        │ RabbitMQ │  ←──→  exchange `channels` (topic)
-        └────┬─────┘
-             │
-             ├──→ whatsapp     ─→ Meta API
-             ├──→ slack        ─→ Slack API
-             ├──→ notion       ─→ Notion API
-             ├──→ instagram    ─→ Meta API
-             ├──→ tiktok       ─→ TikTok API
-             ├──→ facebook     ─→ Meta API
-             ├──→ email        ─→ Resend
-             ├──→ scrapping    ─→ Browserless Chrome
-             ├──→ scheduler    ─→ Redis (BullMQ) ─→ re-publica al routing key destino
-             └──→ identity     ─→ resolución de usuarios
+         ┌──────────┐
+         │ Frontend │
+         └────┬─────┘
+              │ HTTPS (reads)
+              ▼
+         ┌──────────┐    ┌─────────────────────────────┐
+         │  Gateway │ ←─ │ Webhooks externos           │
+         │ (HTTP)   │    │ (Resend, Meta, Slack, etc.) │
+         └────┬─────┘    └─────────────────────────────┘
+          ╱   │    ╲
+         ╱    │     ╲
+        ╱     │      ╲
+       ╱      │       ╲
+      ▼       ▼        ▼
+┌─────────┐ ┌─────────┐ ┌──────────┐
+│ Sync    │ │ RabbitMQ│ │ Servicios│  (whatsapp, ig, slack,
+│ Service │ │ (events) │ │ (write)  │   notion, scrapping...)
+│ CQRS    │ └────┬─────┘ └────┬─────┘
+│ Read    │      │            │
+│ (Mongo) │      │            │ publican data.* events
+└─────────┘      │            ▼
+             ┌───┴──────────────────────────┐
+             │  Each service writes to its   │
+             │  own PostgreSQL DB            │
+             └──────────────────────────────┘
+
+Gateway consulta Sync Service por HTTPS directo (excepción única).
+Servicios NUNCA se hablan directo — siempre vía RabbitMQ.
 ```
 
 **Reglas duras de la arquitectura** (no romper sin consenso):
@@ -84,6 +89,9 @@ Más infra: PostgreSQL (puerto 5432), RabbitMQ (5672), Redis (6379), Browserless
 1. Los servicios **NUNCA se hablan directo entre sí** — siempre vía `channels` exchange en RabbitMQ.
 2. El gateway es el **único punto HTTP público** — incluyendo webhooks de proveedores externos.
 3. Cada servicio es un **submódulo Git independiente** con su propio repo, DB, Dockerfile y schema.
+4. **Toda escritura publica un evento `data.*`** — el Sync Service los escucha para mantener el read model en MongoDB.
+5. **Sync Service es la excepción HTTP** — el Gateway lo consulta por HTTPS para TODAS las lecturas. Es el único servicio con REST directo al Gateway.
+6. **MongoDB no es fuente de verdad** — la source of truth es PostgreSQL de cada servicio. MongoDB es un read model desnormalizado.
 
 Ver [.claude/skills/microservice-pattern/SKILL.md](.claude/skills/microservice-pattern/SKILL.md) (también espejado en [.agent/](.agent/skills/microservice-pattern.md/SKILL.md)) para el patrón completo cuando agregues un servicio nuevo.
 
@@ -164,12 +172,17 @@ git submodule update --remote --recursive
 
 ## Estado actual del proyecto
 
-- ✅ 11 microservicios funcionando + infraestructura completa
+- ✅ 12 microservicios funcionando + infraestructura completa (PostgreSQL + MongoDB + RabbitMQ + Redis)
 - ✅ Patrón RPC sobre RabbitMQ con `correlationId` (ver `gateway/src/identity/services/request-response.manager.ts`)
 - ✅ Patrón fire-and-forget para acciones asincrónicas
+- ✅ CQRS read model con MongoDB + Sync Service (Fase 0 — infra lista)
 - ✅ Webhooks de proveedores externos verificados con HMAC (Resend, Slack)
 - ✅ Schema sync idempotente al boot (`prisma db push`)
 - ✅ Tareas programadas con BullMQ + Redis
 - ⏳ JWT auth wireado pero comentado — pendiente activar
 - ⏳ CORS no configurado — pendiente si el frontend va en otro dominio
 - ⏳ WebSocket bridge para eventos en tiempo real al frontend — pendiente
+- ⏳ Eventos `data.*` en servicios productores — pendiente (Fase 1)
+- ⏳ Sync Service — pendiente de crear (Fase 2)
+- ⏳ Gateway endpoints `/v1/query/*` — pendiente (Fase 3)
+- ⏳ Unificación cross-channel en MongoDB — pendiente (Fase 4)

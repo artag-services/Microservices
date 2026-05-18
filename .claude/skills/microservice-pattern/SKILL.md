@@ -7,21 +7,28 @@ description: Use this skill ANY time the user wants to create a new microservice
 
 This is a composition repo of Git submodules. Every service follows the same blueprint. **Do not deviate without the user's explicit consent** — they chose this pattern for separability (any service must be movable to its own infra without rewiring others).
 
-## The two laws
+## The three laws (plus two exceptions)
 
 1. **Services NEVER communicate directly with each other.** No HTTP, no gRPC, no shared DB. The only allowed inter-service channel is the RabbitMQ topic exchange `channels`. The gateway is the sole HTTP entry point for clients **and the sole receiver of inbound webhooks** from external providers (Resend, Notion, Meta, Slack, etc.). The gateway validates signatures, then publishes a `channels.<service>.events.<thing>` message; the destination microservice consumes it. Never expose a microservice's HTTP port to an external provider.
 
 2. **Every service is a separate Git submodule.** Its remote is `https://github.com/artag-services/<name>.git` (or `<name>-service.git` for older ones — match what the user gives you, don't invent). It has its own `package.json`, Dockerfile, `entrypoint.sh`, and Prisma schema.
 
+3. **Every write publishes a `data.*` event.** Any service that persists data MUST publish a RabbitMQ event with routing key `data.<service>.<entity>.<action>`. The Sync Service consumes these to update the MongoDB read model (CQRS).
+
+**Exceptions to Law 1:**
+- **Sync Service (CQRS Read)** — The only service the Gateway queries via direct HTTPS. Used for ALL cross-service reads. Never called by external clients.
+- **Gateway inbound webhooks** — External providers (Meta, Resend, Slack) call the Gateway's HTTP endpoints directly.
+
 ## Stack (do not vary)
 
 | Concern | Choice |
-|---|---|
+|---|---|---|
 | Framework | NestJS 10 |
 | Language | TypeScript 5 (strict) |
 | Package manager | pnpm (lockfile = `pnpm-lock.yaml`) |
 | ORM | Prisma 5, schema per service |
-| DB | PostgreSQL — own database per service (`<name>_db` on shared Postgres in dev, Neon in prod) |
+| DB (write) | PostgreSQL — own database per service (`<name>_db` on shared Postgres in dev, Neon in prod) |
+| DB (read) | MongoDB 7 — shared CQRS read model (Sync Service only) |
 | Schema sync on boot | `prisma db push --accept-data-loss --skip-generate` (NOT `migrate deploy` — see CLAUDE.md decision) |
 | Messaging | `amqplib` directly (the existing services don't use `@nestjs/microservices`) |
 | Exchange | topic `channels`, durable, name configurable via `RABBITMQ_EXCHANGE` |
