@@ -96,8 +96,9 @@ services:
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      # Stays unhealthy until rs.initiate() has been run. Once initialized,
-      # `rs.status().ok` returns 1 and this passes.
+      # Stays unhealthy until rs.initiate() has been run (by mongo-init).
+      # Once initialized, `rs.status().ok` returns 1 and this passes,
+      # which gates `sync`'s startup.
       test:
         - CMD-SHELL
         - 'mongo --quiet --eval "try { rs.status().ok } catch (e) { quit(1) }" | grep -q 1'
@@ -105,6 +106,49 @@ services:
       timeout: 5s
       retries: 30
       start_period: 30s
+    networks:
+      - microservices-network
+
+  # One-shot bootstrap: waits for `mongo` to accept pings, then calls
+  # rs.initiate() if the replica set hasn't been initialized yet. Exits
+  # immediately after. Safe to re-run (idempotent — second invocation
+  # sees the existing rs config and no-ops).
+  mongo-init:
+    image: mongo:4.4
+    container_name: mongo-init
+    restart: 'no'
+    depends_on:
+      - mongo
+    entrypoint:
+      - bash
+      - -c
+      - |
+        echo "[mongo-init] waiting for mongo:27017..."
+        until mongo --host mongo:27017 --quiet --eval 'db.runCommand({ping:1})' >/dev/null 2>&1; do
+          sleep 1
+        done
+        echo "[mongo-init] mongo is up; checking replica set state"
+        STATUS=$$(mongo --host mongo:27017 --quiet --eval 'try { rs.status().ok } catch (e) { print(0) }')
+        if [ "$$STATUS" = "1" ]; then
+          echo "[mongo-init] replica set already initialized — nothing to do"
+        else
+          echo "[mongo-init] initializing rs0..."
+          mongo --host mongo:27017 --quiet --eval '
+            rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongo:27017"}]})
+          '
+          # Poll until rs.status().ok == 1 so dependent services don't
+          # start before the cluster is actually ready.
+          for i in $$(seq 1 30); do
+            ok=$$(mongo --host mongo:27017 --quiet --eval 'try { rs.status().ok } catch (e) { print(0) }')
+            if [ "$$ok" = "1" ]; then
+              echo "[mongo-init] replica set is up after $${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "[mongo-init] ERROR: replica set never reached ok=1" >&2
+          exit 1
+        fi
     networks:
       - microservices-network
 
