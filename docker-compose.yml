@@ -68,28 +68,43 @@ services:
   # ─────────────────────────────────────────
   # MongoDB (CQRS Read Model — Sync Service)
   # ─────────────────────────────────────────
+  # Why a single-node REPLICA SET (not standalone)?
+  # Prisma's MongoDB connector uses transactions internally for nested
+  # writes (embedded types like UnifiedUser.identities). Transactions
+  # require a replica set — standalone mongo fails with:
+  #   "Prisma needs to perform transactions, which requires your
+  #    MongoDB server to be run as a replica set."
+  # One-time bootstrap after first start: see docs/cqrs-mongo-setup.md
+  # (or just run `rs.initiate()` against `mongo:27017`).
+  #
+  # Why NO auth? Mongo+replSet+auth needs a keyfile that's a pain to
+  # manage cross-platform via bind mounts. This mongo is only reachable
+  # from the internal `microservices-network`; we don't expose it
+  # outside docker. If you ever need auth, add `--keyFile` and revert
+  # MONGO_USER/PASS into the env block.
+  #
+  # Why mongo:4.4 (not 5+)? MongoDB 5+ needs CPU AVX instructions,
+  # which some VPS hosts don't expose. 4.4 is the last version that
+  # works on older hardware. Prisma 5 supports 4.4 fully.
   mongo:
-    # ⚠️ mongo:4.4 (NOT 5+) — MongoDB 5+ requires AVX CPU instructions,
-    # which some remote servers / older VPS hosts don't expose.
-    # 4.4 is the last version without that requirement.
-    # Symptom on incompatible CPUs: "Illegal instruction (core dumped)".
-    # Prisma 5 fully supports 4.4 for CRUD/upsert (no cross-doc transactions used here).
     image: mongo:4.4
     container_name: mongo
     restart: unless-stopped
+    command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
     ports:
       - '27017:27017'
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      # mongosh is mongo:5+; use the older `mongo` shell for 4.4
-      test: echo 'db.runCommand("ping").ok' | mongo --quiet
+      # Stays unhealthy until rs.initiate() has been run. Once initialized,
+      # `rs.status().ok` returns 1 and this passes.
+      test:
+        - CMD-SHELL
+        - 'mongo --quiet --eval "try { rs.status().ok } catch (e) { quit(1) }" | grep -q 1'
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 30s
     networks:
       - microservices-network
 
