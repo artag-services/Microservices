@@ -193,37 +193,30 @@ curl -X POST http://localhost:3000/api/v1/schedules \
   }'
 ```
 
-## ✅ Listar tareas
+## 📖 Listar / ver tareas
 
-### `GET /api/v1/scraping/tasks?limit=50&userId=scristxyz`
+Movido al read model unificado:
 
-**Response (`200 OK`):** array de jobs (más recientes primero).
+- [`GET /v1/query/scraping-tasks?status=completed`](./query.md#get-v1queryscraping-tasks) — lista
+- [`GET /v1/query/scraping-tasks/:id`](./query.md#get-v1queryscraping-tasksid) — detalle (404 si no existe)
+- [`GET /v1/query/users/:userId/scraping-tasks`](./query.md#get-v1queryusersuseridscraping-tasks) — por usuario
 
+Shape:
 ```json
-[
-  {
-    "id": "uuid",
-    "userId": "scristxyz",
-    "url": "https://example.com",
-    "strategy": "extract",
-    "status": "SUCCESS",
-    "result": { "title": "...", "price": "..." },
-    "startedAt": "...",
-    "completedAt": "...",
-    "durationMs": 2341,
-    "expiresAt": "2026-04-28T...",
-    "createdAt": "..."
-  }
-]
+{
+  "id": "task-uuid",
+  "userId": "scristxyz",
+  "url": "https://example.com",
+  "title": "...",
+  "status": "completed",
+  "notionPageUrl": "https://notion.so/...",
+  "durationMs": 2341,
+  "error": null,
+  "occurredAt": "..."
+}
 ```
 
-`status`: `QUEUED` → `RUNNING` → `SUCCESS` | `FAILED`
-
-## ✅ Ver una tarea
-
-### `GET /api/v1/scraping/tasks/:id`
-
-Mismo shape que el listado, un solo objeto. `404` si no existe.
+> El read model NO incluye el `result.data` completo (sólo `title`). Para el payload extraído completo, usá el SSE event `scraping:completed` que SÍ lleva el `data` lleno, o consultá directamente el scraping service vía un endpoint admin (futuro).
 
 ## ✅ Borrar tarea
 

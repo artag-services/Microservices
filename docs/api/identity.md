@@ -54,56 +54,10 @@ Crea o vincula una identidad. Si el `channelUserId` en ese `channel` ya existe, 
 
 ---
 
-### `GET /v1/identity/users`
-**Patrón:** RPC · `200 OK`
-
-Lista todos los usuarios con filtros opcionales.
-
-**Query params:**
-| Param | Tipo | Default |
-|---|---|---|
-| `channel` | string | (todos) |
-| `includeDeleted` | boolean | `false` |
-
-**Ejemplo:** `GET /api/v1/identity/users?channel=whatsapp`
-
-**Response:**
-```json
-[
-  {
-    "id": "uuid",
-    "aiEnabled": true,
-    "createdAt": "...",
-    "identities": [
-      {
-        "channel": "whatsapp",
-        "channelUserId": "573205711428",
-        "displayName": "Chris",
-        "trustScore": 0.95
-      }
-    ]
-  }
-]
-```
-
----
-
-### `GET /v1/identity/users/:userId`
-**Patrón:** RPC · `200 OK`
-
-Devuelve un usuario específico con todas sus identidades, contactos, e historial de nombres.
-
-**Response:**
-```json
-{
-  "user": { "id": "...", "aiEnabled": true, ... },
-  "identities": [...],
-  "contacts": [...],
-  "nameHistory": [...]
-}
-```
-
-`404` si el `userId` no existe.
+> 📖 **Las lecturas se movieron al read model unificado:**
+> - Listar usuarios → [`GET /v1/query/users`](./query.md#get-v1queryusers)
+> - Un usuario con identities cross-channel → [`GET /v1/query/users/:userId`](./query.md#get-v1queryusersuserid)
+> - Conversaciones / emails / scraping del usuario → ver `query.md`
 
 ---
 

@@ -1,6 +1,6 @@
 # API del Gateway — referencia para frontend
 
-Esta carpeta documenta el **único API público del proyecto**: el gateway. El frontend NUNCA llama directo a los microservicios — solo al gateway, que internamente publica/consume en RabbitMQ y orquesta todo.
+Esta carpeta documenta el **único API público del proyecto**: el gateway. El frontend NUNCA llama directo a los microservicios — solo al gateway.
 
 ## Base URL
 
@@ -8,96 +8,73 @@ Esta carpeta documenta el **único API público del proyecto**: el gateway. El f
 https://<tu-dominio-del-gateway>/api
 ```
 
-Localmente: `http://localhost:3000/api`. El prefijo `/api` lo agrega el gateway globalmente; todas las rutas documentadas lo asumen.
+Localmente: `http://localhost:3000/api`. El prefijo `/api` lo agrega el gateway globalmente.
 
-## Endpoints por servicio
+## Donde miras qué
 
-| Área | Doc | Endpoints |
+> **TL;DR:** Para LEER datos del sistema, sólo necesitás `query.md`. Para ESCRIBIR/disparar acciones (mandar mensaje, programar tarea, etc.), mirás la doc del recurso específico.
+
+| Área | Doc | Para qué sirve |
 |---|---|---|
-| Identidad de usuarios | [identity.md](./identity.md) | `/v1/identity/*` |
-| Envío de mensajes (genérico) | [messages.md](./messages.md) | `/v1/messages/*` |
-| **📚 Por canal** (WhatsApp / Slack / Notion / Instagram / TikTok / Facebook) | [channels/](./channels/) | guías prácticas con ejemplos copy-paste por canal |
-| Conversaciones (chat rooms) | [conversations.md](./conversations.md) | `/v1/conversations/*` ⚠️ ver nota |
-| Web scraping | [scraping.md](./scraping.md) | `/v1/scraping/*` |
-| Email transaccional + inbound | [email.md](./email.md) | `/v1/emails/*` |
-| Tareas programadas | [scheduler.md](./scheduler.md) | `/v1/schedules/*` |
-| **Agente conversacional con tools** | [agent.md](./agent.md) | `/v1/agent/*` (chat, conversations, memories) |
-| **Lecturas cross-service (CQRS read model)** | [query.md](./query.md) | `/v1/query/*` (users, conversations, messages, search) |
-| Eventos real-time (SSE) | [events.md](./events.md) | `/v1/events` ← una sola conexión cubre TODO |
+| **📖 LECTURAS cross-service (read model — Mongo via CQRS)** | [query.md](./query.md) | **`/v1/query/*`** — TODOS los GETs del sistema. Users, conversations, messages, emails, scraping-tasks, search |
+| Real-time (SSE) | [events.md](./events.md) | `/v1/events` — UNA conexión cubre scraping + email + scheduler + agent + WS de mensajes |
+| Identidad (acciones) | [identity.md](./identity.md) | `/v1/identity/{resolve,merge,users/:id,users/:id/ai-settings}` — POST / DELETE / PATCH. Los GET viejos están en `query.md`. |
+| Envío de mensajes (genérico) | [messages.md](./messages.md) | `/v1/messages/send` — disparar mensaje a cualquier canal |
+| Guías por canal (WhatsApp / Slack / Notion / Instagram / TikTok / Facebook) | [channels/](./channels/) | ejemplos copy-paste por canal |
+| Conversations (acciones) | [conversations.md](./conversations.md) | `/v1/conversations` — crear/actualizar/archivar. Los GETs están en `query.md`. |
+| Scraping (acciones) | [scraping.md](./scraping.md) | `/v1/scraping/tasks` — disparar job. Los GETs están en `query.md`. |
+| Email (acciones) | [email.md](./email.md) | `POST /v1/emails`, `GET /v1/emails/domains`, cleanup-expired. Los GETs de mensajes están en `query.md`. |
+| Tareas programadas | [scheduler.md](./scheduler.md) | `/v1/schedules/*` (su read model propio, BullMQ) |
+| **Agente con tools** | [agent.md](./agent.md) | `/v1/agent/{chat,memories}` + `GET /v1/agent/conversations/:id` (detalle con tool blocks). Resto via query. |
 | Webhooks (proveedores externos) | [webhooks.md](./webhooks.md) | `/webhooks/*` — **NO usar desde frontend** |
+| Frontend Next.js | [frontend-nextjs.md](./frontend-nextjs.md) | guía con hooks, Socket.IO, SSE, ejemplo end-to-end |
+
+## El cambio importante (mayo 2026)
+
+Antes existían `GET /v1/identity/users`, `GET /v1/email`, `GET /v1/scraping/tasks`, `GET /v1/agent/conversations`, `GET /v1/conversations`. **Todos esos GETs ya no existen** — fueron reemplazados por `/v1/query/*`.
+
+**¿Por qué?** Cross-service joins eran imposibles (cada microservicio sólo conoce su propio Postgres). Ahora un Sync Service consume eventos `data.*` y mantiene un read model unificado en MongoDB. El gateway proxea `/v1/query/*` a ese servicio. El resultado: un único endpoint da "todas las conversaciones del usuario X" sin importar de qué canal vienen.
+
+Las acciones (POST / PATCH / DELETE) siguen iguales, pegándole al microservicio correspondiente vía RabbitMQ.
 
 ## Convenciones que aplican a TODO el API
 
 ### Patrones de respuesta — RPC vs fire-and-forget
 
-Cada endpoint sigue uno de dos patrones. Importa para el frontend porque cambia cómo manejar la respuesta:
-
 | Patrón | Status | Cuándo se usa | Implicación para el frontend |
 |---|---|---|---|
-| **RPC** | `200 OK` | Cuando la respuesta del microservicio es relevante (lecturas, creaciones que devuelven el objeto creado) | El gateway espera la respuesta sobre RabbitMQ antes de responderte. Latencia típica 50-300ms. **Puede tardar hasta 30s y hacer timeout** si el microservicio destino está caído. |
-| **Fire-and-forget** | `202 Accepted` | Acciones que no necesitan respuesta inmediata (eliminar, disparar, encolar) | El gateway publica al broker y te responde al instante. **No sabés si el trabajo se completó** — solo que se encoló. Para verificar después, consultá el recurso (ej: `GET /v1/emails/:id`). |
-
-Cada endpoint en la documentación está marcado con su patrón.
+| **RPC** | `200 OK` | Lecturas (`/v1/query/*`) y acciones que necesitan respuesta inmediata | Latencia típica 5-300ms; timeout a los 30s |
+| **Fire-and-forget** | `202 Accepted` | Acciones que no necesitan respuesta inmediata (mandar email, encolar scraping, resolver identidad) | El gateway publica al broker y responde al instante. Para confirmar el resultado: SSE en `/v1/events` |
 
 ### Formato de error
-
-Cuando algo falla, el gateway responde con JSON consistente:
 
 ```json
 {
   "statusCode": 400,
-  "timestamp": "2026-04-25T18:42:11.123Z",
+  "timestamp": "...",
   "path": "/api/v1/emails",
   "message": "Validation failed: ..."
 }
 ```
 
-Códigos comunes:
-- `400 Bad Request` — body o query inválido (validación de DTO)
-- `401 Unauthorized` — solo en webhooks de Resend/Slack si firma inválida
-- `404 Not Found` — recurso inexistente o ruta mal escrita
-- `500 Internal Server Error` — error en el microservicio destino o en el gateway
-- **Timeout (~30s, sin status específico)** — si un endpoint RPC no recibe respuesta del microservicio
+Códigos comunes: `400`, `401` (webhooks con firma inválida), `404` (no existe o soft-deleted), `503` (Read model unavailable: sync caído), timeout ~30s en RPCs si el microservicio destino está caído.
 
 ### Validación
 
-Todos los DTOs usan `class-validator` con `whitelist: true, forbidNonWhitelisted: true`. Esto significa:
-- Cualquier campo que **NO** está declarado en el DTO causa `400`. No mandes campos extra "por las dudas".
-- Los tipos se validan estrictamente: si un endpoint pide `to: string[]`, mandar `to: "x@y.com"` (string suelto) falla.
+DTOs con `class-validator` (`whitelist: true, forbidNonWhitelisted: true`). Cualquier campo no declarado dispara `400`. No mandes campos extra "por las dudas".
 
 ## Autenticación
 
-**No hay autenticación activa todavía.** El gateway tiene JWT wireado (`@nestjs/passport`, `@nestjs/jwt`) pero está comentado en el módulo. Cualquiera con acceso a la URL puede llamar cualquier endpoint.
-
-Cuando se active, todos los endpoints `/v1/*` requerirán `Authorization: Bearer <jwt>`. Los `/webhooks/*` seguirán sin auth (los proveedores externos validan vía firma HMAC).
+**No hay auth activa todavía.** El gateway tiene JWT cableado (`@nestjs/passport`, `@nestjs/jwt`) pero comentado. Cuando se active, todos los `/v1/*` requerirán `Authorization: Bearer <jwt>`. Los `/webhooks/*` seguirán sin auth (validan firma HMAC).
 
 ## CORS
 
-**El gateway NO tiene CORS configurado.** Si el frontend corre en otro origen (ej: `https://app.tudominio.com` y gateway en `https://gateway.tudominio.com`), las peticiones desde el navegador van a fallar con error CORS.
-
-Soluciones:
-1. **Servir frontend y API bajo el mismo dominio** (recomendado en prod — Cloudflare Tunnel + dos hostnames apuntando al mismo gateway)
-2. Pedirle al backend que active CORS — un cambio de 3 líneas en `gateway/src/main.ts`:
-   ```ts
-   app.enableCors({
-     origin: ['https://app.tudominio.com'],
-     credentials: true,
-   });
-   ```
-3. **Para desarrollo local**: usar un proxy del dev server (Vite/Next/Webpack) que tunelee `/api/*` al gateway
-
-## Headers que siempre debés mandar
-
-```
-Content-Type: application/json
-```
-
-Todos los endpoints aceptan y devuelven JSON.
+Activable via env: `CORS_ALLOWED_ORIGINS=http://localhost:3000,https://app.tudominio.com` en el `.env` del server, luego `docker-compose restart gateway`. Sin la var, el gateway acepta cualquier origen (cómodo en dev, inseguro en prod).
 
 ## Idempotencia
 
-Algunos endpoints aceptan un `idempotencyKey` en el body (ej: `POST /v1/emails`). Si reenviás la misma request con el mismo key, no se duplica el efecto — te devuelve el resultado original. Útil para frontends donde el usuario puede dar doble-click al botón "Enviar".
+Algunos endpoints aceptan `idempotencyKey` (ej: `POST /v1/emails`). Reenviar con el mismo key devuelve el resultado original sin duplicar el efecto.
 
 ## Rate limiting
 
-**No hay rate limiting global.** Cada microservicio puede tener el suyo (ej: scraping limita a 10 req/día por usuario). Tu frontend debería implementar debounce/throttle en botones que disparan acciones costosas (envío de email, scraping).
+Sin rate limit global. Cada microservicio puede tener el suyo (ej: scraping limita 10 req/día por usuario). El front debería hacer debounce en botones costosos.

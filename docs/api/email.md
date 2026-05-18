@@ -76,55 +76,19 @@ Envía un email. Espera la respuesta del provider antes de devolver.
 
 ---
 
-### `GET /v1/emails`
-**Patrón:** RPC · `200 OK`
-
-Lista emails enviados (más recientes primero).
-
-**Query params:**
-- `limit` (default 50)
-
-**Response:** array de emails (mismo shape que `POST` response, sin el `events`).
-
----
-
-### `GET /v1/emails/:id`
-**Patrón:** RPC · `200 OK`
-
-Detalle de un email específico, incluyendo su historial de eventos.
-
-**Response:**
-```json
-{
-  "id": "uuid",
-  "to": ["..."],
-  "subject": "...",
-  "status": "DELIVERED",
-  "providerMessageId": "...",
-  "sentAt": "...",
-  "deliveredAt": "...",
-  "openedAt": null,
-  "events": [
-    {
-      "id": "uuid",
-      "type": "email.delivered",
-      "occurredAt": "2026-04-25T...",
-      "rawPayload": { ... }
-    }
-  ]
-}
-```
+> 📖 **Las lecturas de emails se movieron al read model:**
+> - Lista (inbound + outbound, todos los dominios): [`GET /v1/query/emails`](./query.md#get-v1queryemails) — filtros `?direction`, `?domain`, `?status`
+> - Detalle: [`GET /v1/query/emails/:id`](./query.md#get-v1queryemailsid)
+> - Por usuario: [`GET /v1/query/users/:userId/emails`](./query.md#get-v1queryusersuseridemails)
+>
+> El read model lleva el status lifecycle completo (`SENT` → `DELIVERED` → `OPENED` / `CLICKED` / `BOUNCED` / `COMPLAINED` / `FAILED`) con sus timestamps individuales (`sentAt`, `deliveredAt`, etc.), porque cada webhook de Resend re-emite el snapshot.
 
 `status` posibles:
-- `QUEUED` — guardado en DB pero todavía no enviado al provider
-- `SENT` — provider lo aceptó, está en su cola
-- `DELIVERED` — provider confirmó entrega al MTA destino
-- `BOUNCED` — el destinatario rechazó (mailbox inexistente, full, etc.)
-- `COMPLAINED` — el destinatario lo marcó como spam
-- `FAILED` — error al enviar (API key inválida, etc.)
-- `OPENED` / `CLICKED` — solo si activaste tracking en Resend
-
-> El `status` empieza en `SENT` y va cambiando a medida que llegan webhooks de Resend. Si querés saber el estado final, hacé polling o suscribite a los eventos broadcast (`channels.email.events.*`) desde otro servicio.
+- `QUEUED` — guardado pero todavía no enviado al provider
+- `SENT` — provider lo aceptó
+- `DELIVERED` — entregado al MTA destino
+- `BOUNCED` / `COMPLAINED` / `FAILED` — fallos
+- `OPENED` / `CLICKED` — sólo si activaste tracking en Resend
 
 ---
 
@@ -149,7 +113,7 @@ Resend manda webhooks a `/api/webhooks/resend` cuando ocurre algo (delivered, bo
 2. Publica el evento a `channels.email.webhook.resend`
 3. El email-service consume y actualiza el `EmailMessage` correspondiente
 
-El frontend no se entera directo del webhook — tenés que pollear `GET /v1/emails/:id` o suscribirte a los broadcast (futuro WS bridge).
+El frontend NO necesita pollear — el read model se actualiza automáticamente con cada webhook. Hacer `GET /v1/query/emails/:id` siempre devuelve el último status conocido. Para push real-time, suscribirse al SSE en `/v1/events?topics=email:*`.
 
 ---
 

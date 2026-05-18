@@ -46,30 +46,16 @@ Manda un mensaje al agente, devuelve la respuesta final + las tools que usó.
 
 ---
 
-### `GET /v1/agent/conversations?userId=<id>&limit=<n>`
-**Patrón:** RPC · `200 OK`
-
-Lista conversaciones del usuario, más recientes primero.
-
-```json
-[
-  {
-    "id": "conv-uuid",
-    "userId": "u_xyz",
-    "title": "Email a Cris",
-    "lastMessageAt": "2026-05-16T...",
-    "messageCount": 4,
-    "createdAt": "2026-05-16T..."
-  }
-]
-```
-
----
+> 📖 **Listar conversaciones del agente** se movió al read model unificado:
+> - [`GET /v1/query/conversations?channel=agent`](./query.md#get-v1queryconversations) — todas
+> - [`GET /v1/query/users/:userId/conversations?channel=agent`](./query.md#get-v1queryusersuseridconversations) — del usuario
+>
+> El endpoint específico de abajo se mantiene porque devuelve los `tool_use` / `tool_result` blocks, que el read model NO proyecta.
 
 ### `GET /v1/agent/conversations/:id`
 **Patrón:** RPC · `200 OK`
 
-Detalle + historial de mensajes de una conversación.
+Detalle + historial **con tool blocks** (vista deep-dive del agente). Para el resumen cross-channel sin internals, usá `/v1/query/conversations/:id`.
 
 ```json
 {

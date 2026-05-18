@@ -8,76 +8,11 @@ Sistema de "salas de conversación" — agrupa los mensajes intercambiados con u
 
 > Todos los ejemplos abajo asumen el path correcto cuando se arregle. Reemplazá por `/api/api/v1/conversations` mientras tanto.
 
-### `GET /v1/conversations`
-**Patrón:** Query local · `200 OK`
-
-Lista paginada de conversaciones.
-
-**Query params:**
-| Param | Tipo | Default |
-|---|---|---|
-| `channel` | string | (todos) |
-| `status` | enum | (todos) — valores: `OPEN`, `CLOSED`, `WAITING`, `ARCHIVED` |
-| `limit` | number | `50` |
-| `offset` | number | `0` |
-
-**Ejemplo:** `?channel=whatsapp&status=OPEN&limit=20&offset=0`
-
-**Response:**
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "channel": "whatsapp",
-      "channelUserId": "573205711428",
-      "topic": "Soporte facturación",
-      "status": "OPEN",
-      "aiEnabled": true,
-      "agentAssigned": null,
-      "lastMessageAt": "2026-04-25T...",
-      "createdAt": "..."
-    }
-  ],
-  "total": 142,
-  "limit": 20,
-  "offset": 0
-}
-```
-
----
-
-### `GET /v1/conversations/:conversationId`
-**Patrón:** Query local · `200 OK`
-
-Detalle de una conversación específica.
-
-**Response:** modelo completo `Conversation` (todos los campos).
-
----
-
-### `GET /v1/conversations/:conversationId/messages`
-**Patrón:** Query local · `200 OK`
-
-Mensajes de una conversación, paginados.
-
-**Query params:**
-- `limit` (default 50)
-- `offset` (default 0)
-
-**Response:**
-```json
-[
-  {
-    "id": "uuid",
-    "conversationId": "uuid",
-    "direction": "INBOUND",
-    "content": "Hola, necesito ayuda con mi factura",
-    "from": "573205711428",
-    "createdAt": "..."
-  }
-]
-```
+> 📖 **Las lecturas de conversaciones se movieron al read model:**
+> - Lista cross-channel: [`GET /v1/query/conversations?channel=whatsapp`](./query.md#get-v1queryconversations)
+> - Detalle: [`GET /v1/query/conversations/:id`](./query.md#get-v1queryconversationsid)
+> - Mensajes (cronológico asc): [`GET /v1/query/conversations/:id/messages`](./query.md#get-v1queryconversationsidmessages)
+> - Por usuario: [`GET /v1/query/users/:userId/conversations`](./query.md#get-v1queryusersuseridconversations)
 
 ---
 

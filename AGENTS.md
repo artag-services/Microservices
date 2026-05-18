@@ -94,6 +94,84 @@ npm run test:e2e       # E2E tests (requires services running)
   - Usage: `notificationService.send(adapterName, userId, message)`
 - **Puppeteer Plugins**: Uses stealth mode (`puppeteer-extra-plugin-stealth`) + resource blocking
 
+### CQRS / Sync Service (Query Side)
+
+**Problem:** All services use fire-and-forget pattern. The frontend has no unified place to query cross-service data (e.g., "show all conversations for a user across WhatsApp + Instagram + Messenger").
+
+**Solution:** CQRS with MongoDB as the read model.
+
+```
+WRITE SIDE (existing)           READ SIDE (new)
+┌──────────┐                    ┌──────────────────┐
+│ WhatsApp │──data.*.event──→   │   Sync Service   │
+│ Instagram│──data.*.event──→   │   (port 3012)    │
+│ Identity │──data.*.event──→   │   CQRS Read      │
+│ Scrapping│──data.*.event──→   │   NestJS + Mongoose
+│ Slack    │──data.*.event──→   └────────┬─────────┘
+│ ...      │                              │ escribe
+└──────────┘                              ▼
+                                    ┌──────────┐
+                                    │ MongoDB  │
+                                    │ Read     │
+                                    │ Model    │
+                                    └────┬─────┘
+                                         │ consulta (HTTPS)
+                                         ▼
+                                    ┌──────────┐
+                                    │ Gateway  │
+                                    │ GET /v1/ │
+                                    │ query/*  │
+                                    └──────────┘
+```
+
+**RabbitMQ Event Contract (data.* events):**
+Every service that persists data MUST publish an event when data changes. Sync-service binds a single queue (`sync.data.all`) to pattern `data.#` and dispatches per routing key.
+
+| Routing Key | Producer | Sync target | Notes |
+|---|---|---|---|
+| `data.identity.user.created` | identity | UnifiedUser (create) | First time a User appears (any channel). |
+| `data.identity.user.linked` | identity | UnifiedUser (upsert + merge identities[]) | Emitted on every resolveIdentity AND post-merge for each reparented identity. |
+| `data.identity.user.deleted` | identity | UnifiedUser (tombstone) | `reason: 'soft-delete' \| 'merged'`; on merge carries `mergedInto`. |
+| `data.whatsapp.conversation.created` | whatsapp | UnifiedConversation (upsert snapshot) | Emitted on create AND on every ai-toggle / agent-assign (re-emits full snapshot). |
+| `data.whatsapp.message.received` | whatsapp | UnifiedMessage (sender=USER) | One per incoming user message. |
+| `data.instagram.conversation.created` | instagram | UnifiedConversation | Same pattern as whatsapp. |
+| `data.instagram.message.received` | instagram | UnifiedMessage (sender=USER) | |
+| `data.slack.message.sent` | slack | UnifiedMessage (sender=BOT, channel=slack) | Emitted on every chat.postMessage (success + failure). No conversation server-side. |
+| `data.scraping.task.created` | scrapping | ScrapingTaskSummary (status=queued) | |
+| `data.scraping.task.started` | scrapping | ScrapingTaskSummary (status=started) | |
+| `data.scraping.task.completed` | scrapping | ScrapingTaskSummary (status=completed) | Includes `title` (from result.data), `durationMs`, `notionPageUrl`. |
+| `data.scraping.task.failed` | scrapping | ScrapingTaskSummary (status=failed) | Same projector as completed; routes on status field. |
+| `data.email.message.sent` | email | UnifiedEmail (direction=outbound, upsert by emailId) | Re-emitted on EVERY status change (sent/delivered/bounced/opened/clicked/complained/failed) — sync layers fields onto the same doc. |
+| `data.email.message.received` | email | UnifiedEmail (direction=inbound) | One per inbound; re-emitted only on identity backfill. |
+| `data.agent.conversation.created` | agent | UnifiedConversation (channel=agent) | Fires once per chat — uses `wasCreated` detection via createdAt===updatedAt. |
+| `data.agent.conversation.deleted` | agent | UnifiedConversation (status=DELETED) | Soft delete; QueryService filters. |
+| `data.agent.message.received` | agent | UnifiedMessage (sender=USER) | User turn. |
+| `data.agent.message.sent` | agent | UnifiedMessage (sender=BOT) | **Only final assistant replies** — intermediate tool-loop iterations are NOT projected. |
+
+**Producer-side rule:** emit AFTER your Postgres write has committed. Build the payload from the persisted row, not the inbound DTO — the row reflects any in-flight transformations (trust-score name updates, status changes, etc.).
+
+**Idempotency:** all projectors upsert by id (`userId`, `conversationId`, `messageId`, `emailId`, `taskId`). Replaying events is safe. Counters that should NOT inflate on replay (e.g. `messageCount`) only bump on first-time create.
+
+**Sync Service responsibilities:**
+1. Listen to all `data.*` events from RabbitMQ
+2. Transform + merge data into denormalized MongoDB documents
+3. Expose REST API consumed ONLY by the Gateway (no external HTTP)
+
+**Gateway query endpoints (future):**
+```
+GET /v1/query/users/:userId → unified user profile (cross-channel)
+GET /v1/query/users/:userId/conversations → all conversations
+GET /v1/query/conversations/:id/messages → messages in a conversation
+GET /v1/query/search?q=... → full-text search across channels
+```
+
+**MongoDB Infrastructure:**
+- Image: `mongo:7`
+- Container: `mongo`
+- Port: 27017
+- Volumes: `mongo_data:/data/db`
+- Credentials: configured via `.env` (`MONGO_USER`, `MONGO_PASS`, `MONGO_URI`)
+
 ## Common Workflows
 
 ### Add New Feature to One Service
@@ -149,6 +227,14 @@ docker build -f <service>/Dockerfile -t <registry>/<service>:<tag> .
 5. **Credentials in source** – Demo tokens in `.env` are examples; production must use secrets manager
 
 6. **Neon pooler connections** – DB URLs use `&channel_binding=require`; required for cloud PostgreSQL
+
+7. **CQRS: toda escritura publica un evento `data.*`** – Cada servicio que persiste datos DEBE publicar un evento a RabbitMQ con routing key `data.<servicio>.<entidad>.<accion>`. El Sync Service los escucha para actualizar MongoDB. Sin evento, el dato no existe en el read model.
+
+8. **Sync Service es la única excepción HTTP directa** – Los microservicios NUNCA se hablan directo por HTTP. EXCEPCIÓN: el Gateway consulta al Sync Service por HTTPS para todas las lecturas. El Sync Service nunca es llamado por nadie más.
+
+9. **MongoDB no es fuente de verdad** – La source of truth sigue siendo PostgreSQL de cada servicio. MongoDB es solo un read model desnormalizado. Si hay discrepancia, el dato correcto está en PostgreSQL.
+
+10. **No escribir directo a MongoDB desde los servicios** – Solo el Sync Service escribe en MongoDB. Los servicios productores solo publican eventos a RabbitMQ.
 
 ## Existing Docs
 - `scrapping/README.md` – Architecture, adapter pattern, performance tips
