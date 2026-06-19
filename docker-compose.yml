@@ -439,8 +439,8 @@ services:
   # Scraping Microservice
   scraping:
     build:
-      context: ./scrapping
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: scrapping/Dockerfile
     container_name: scraping-service
     restart: unless-stopped
     env_file: .env
