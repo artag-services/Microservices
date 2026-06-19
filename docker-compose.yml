@@ -438,44 +438,42 @@ services:
   # ─────────────────────────────────────────
   # Scraping Microservice
   scraping:
-     build:
-       context: ./scrapping
-       dockerfile: Dockerfile
-     container_name: scraping-service
-     restart: unless-stopped
-     env_file: .env
-     ports:
-       - '${SCRAPING_PORT:-3008}:3008'
-      depends_on:
-        postgres:
-          condition: service_healthy
-        rabbitmq:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-     environment:
-       RABBITMQ_URL: ${RABBITMQ_URL}
-       RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
-       # New v2: Prisma DB + Redis for session persistence
-       DATABASE_URL: ${SCRAPING_DATABASE_URL}
-       SCRAPING_DATABASE_URL: ${SCRAPING_DATABASE_URL}
-       REDIS_HOST: ${REDIS_HOST:-redis}
-       REDIS_PORT: ${REDIS_PORT:-6379}
-        # Rust scraper sidecar (runs on localhost inside container)
-        RUST_SCRAPER_URL: http://127.0.0.1:3009
-        SCRAPING_TIMEOUT: ${SCRAPING_TIMEOUT:-60000}
-       RATE_LIMIT_DAILY: ${RATE_LIMIT_DAILY:-10}
-       RATE_LIMIT_WINDOW_HOURS: ${RATE_LIMIT_WINDOW_HOURS:-24}
-       LOG_LEVEL: info
-       NODE_ENV: production
-       POSTGRES_HOST: ${POSTGRES_HOST}
-       POSTGRES_PORT: ${POSTGRES_PORT}
-       POSTGRES_USER: ${POSTGRES_USER}
-       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-       ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
-       SERVICE_NAME: scraping
-     networks:
-       - microservices-network
+    build:
+      context: ./scrapping
+      dockerfile: Dockerfile
+    container_name: scraping-service
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - '${SCRAPING_PORT:-3008}:3008'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
+      DATABASE_URL: ${SCRAPING_DATABASE_URL}
+      SCRAPING_DATABASE_URL: ${SCRAPING_DATABASE_URL}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      RUST_SCRAPER_URL: http://127.0.0.1:3009
+      SCRAPING_TIMEOUT: ${SCRAPING_TIMEOUT:-60000}
+      RATE_LIMIT_DAILY: ${RATE_LIMIT_DAILY:-10}
+      RATE_LIMIT_WINDOW_HOURS: ${RATE_LIMIT_WINDOW_HOURS:-24}
+      LOG_LEVEL: info
+      NODE_ENV: production
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ADMIN_BACKFILL_TOKEN: ${ADMIN_BACKFILL_TOKEN}
+      SERVICE_NAME: scraping
+    networks:
+      - microservices-network
 
   # ─────────────────────────────────────────
   # Mailpit — local SMTP capture for dev (web UI :8025, SMTP :1025)
