@@ -437,24 +437,6 @@ services:
 
   # ─────────────────────────────────────────
   # Scraping Microservice
-  # ─────────────────────────────────────────
-  # ─────────────────────────────────────────
-  # Browserless Chrome (for Puppeteer)
-  # ─────────────────────────────────────────
-  browserless:
-    image: browserless/chrome:latest
-    container_name: browserless-chrome
-    restart: unless-stopped
-    ports:
-      - '3222:3222'
-    environment:
-      PORT: 3222
-      TIMEOUT: 300000
-      CONNECTION_TIMEOUT: 60000
-      MAX_CONCURRENCY: 10
-    networks:
-      - microservices-network
-
   scraping:
      build:
        context: ./scrapping
@@ -464,15 +446,13 @@ services:
      env_file: .env
      ports:
        - '${SCRAPING_PORT:-3008}:3008'
-     depends_on:
-       postgres:
-         condition: service_healthy
-       rabbitmq:
-         condition: service_healthy
-       redis:
-         condition: service_healthy
-       browserless:
-         condition: service_started
+      depends_on:
+        postgres:
+          condition: service_healthy
+        rabbitmq:
+          condition: service_healthy
+        redis:
+          condition: service_healthy
      environment:
        RABBITMQ_URL: ${RABBITMQ_URL}
        RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-channels}
@@ -481,12 +461,9 @@ services:
        SCRAPING_DATABASE_URL: ${SCRAPING_DATABASE_URL}
        REDIS_HOST: ${REDIS_HOST:-redis}
        REDIS_PORT: ${REDIS_PORT:-6379}
-       # Browserless Chrome connection
-       BROWSERLESS_WS_ENDPOINT: ws://browserless:3222
-       PUPPETEER_TIMEOUT: ${PUPPETEER_TIMEOUT:-60000}
-       PUPPETEER_MAX_POOL_SIZE: ${PUPPETEER_MAX_POOL_SIZE:-20}
-       PUPPETEER_PAGES_PER_BROWSER: ${PUPPETEER_PAGES_PER_BROWSER:-5}
-       PUPPETEER_HEADLESS: 'true'
+        # Rust scraper sidecar (runs on localhost inside container)
+        RUST_SCRAPER_URL: http://127.0.0.1:3009
+        SCRAPING_TIMEOUT: ${SCRAPING_TIMEOUT:-60000}
        RATE_LIMIT_DAILY: ${RATE_LIMIT_DAILY:-10}
        RATE_LIMIT_WINDOW_HOURS: ${RATE_LIMIT_WINDOW_HOURS:-24}
        LOG_LEVEL: info
