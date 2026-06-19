@@ -449,8 +449,9 @@ services:
       - '3222:3222'
     environment:
       PORT: 3222
-      TIMEOUT: 120000
-      CONNECTION_TIMEOUT: 30000
+      TIMEOUT: 300000
+      CONNECTION_TIMEOUT: 60000
+      MAX_CONCURRENCY: 10
     networks:
       - microservices-network
 
