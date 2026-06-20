@@ -1,6 +1,6 @@
 use regex::Regex;
 use reqwest::Client;
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 use serde::Serialize;
 use std::collections::HashSet;
 use std::time::Duration;
@@ -21,6 +21,28 @@ pub struct Link {
 
 const MAX_LINKS: usize = 20;
 const MAX_SECTIONS: usize = 10;
+
+// Content-area selectors tried in priority order.
+// Steam-specific selectors first, then generic ones.
+const CONTENT_SELECTORS: &[&str] = &[
+    "#guide_content",
+    ".guide_content",
+    ".workshop_item_body",
+    ".rightDetailsBlock",
+    "article",
+    "main",
+    "[role=main]",
+    ".post-content",
+    ".entry-content",
+    ".content",
+    "#content",
+    ".post-body",
+];
+
+// HTML elements whose entire subtree is noise.
+const NOISE_TAGS: &[&str] = &[
+    "script", "style", "nav", "footer", "header", "aside", "noscript",
+];
 
 pub async fn scrape_url(url: &str, timeout_ms: u64) -> Result<ScrapeResponse, String> {
     let client = Client::builder()
@@ -54,12 +76,15 @@ pub async fn scrape_url(url: &str, timeout_ms: u64) -> Result<ScrapeResponse, St
         .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
-    let document = Html::parse_document(&html);
+    // ---- content extraction pipeline ----
+    let cleaned = clean_html(&html);
+    let document = Html::parse_document(&cleaned);
 
     let title = extract_title(&document);
     let sections = extract_sections(&document);
     let links = extract_links(&document);
-    let text = extract_body_text(&document);
+    let text = extract_from_container(&document, url)
+        .unwrap_or_else(|| extract_body_text(&document));
 
     Ok(ScrapeResponse {
         title,
@@ -67,6 +92,58 @@ pub async fn scrape_url(url: &str, timeout_ms: u64) -> Result<ScrapeResponse, St
         links,
         text,
     })
+}
+
+/// Remove noise elements (script, style, nav, footer, header, aside, noscript)
+/// and HTML comments from the raw HTML string.
+fn clean_html(html: &str) -> String {
+    let mut result = html.to_string();
+
+    for tag in NOISE_TAGS {
+        let re = Regex::new(&format!(r"(?is)<{}[^>]*>.*?</{}>", tag, tag)).unwrap();
+        result = re.replace_all(&result, "").to_string();
+    }
+
+    // Remove HTML comments
+    let re = Regex::new(r"(?is)<!--.*?-->").unwrap();
+    result = re.replace_all(&result, "").to_string();
+
+    result
+}
+
+/// Try to find a content container by iterating content selectors.
+/// Returns the inner text of the first container with meaningful content (>200 chars).
+fn extract_from_container(document: &Html, url: &str) -> Option<String> {
+    let is_steam = url.contains("steamcommunity.com") || url.contains("steampowered.com");
+
+    for sel_str in CONTENT_SELECTORS {
+        // For non-Steam pages, skip Steam-specific selectors
+        if !is_steam
+            && (sel_str.starts_with("#guide")
+                || sel_str.starts_with(".guide")
+                || sel_str.starts_with(".workshop")
+                || sel_str.starts_with(".rightDetails"))
+        {
+            continue;
+        }
+
+        if let Ok(sel) = Selector::parse(sel_str) {
+            if let Some(el) = document.select(&sel).next() {
+                let text = collect_text(el);
+                if text.len() > 200 {
+                    return Some(text);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Collect all descendant text from an element, joining with spaces.
+fn collect_text(el: ElementRef) -> String {
+    let text = el.text().collect::<Vec<_>>().join(" ");
+    let re = Regex::new(r"\s+").unwrap();
+    re.replace_all(&text, " ").trim().to_string()
 }
 
 fn extract_title(document: &Html) -> String {
