@@ -1,15 +1,16 @@
-mod scraper;
+mod domain;
+mod application;
+mod infrastructure;
+mod presentation;
 
-use axum::{http::StatusCode, routing::post, Json, Router};
-use serde::Deserialize;
-use std::net::SocketAddr;
+use std::sync::Arc;
+use axum::{routing::post, Router};
 use tower_http::cors::CorsLayer;
 
-#[derive(Deserialize)]
-struct ScrapeRequest {
-    url: String,
-    timeout_ms: Option<u64>,
-}
+use crate::application::scrape_usecase::ScrapeUseCase;
+use crate::infrastructure::http::reqwest_adapter::ReqwestClient;
+use crate::infrastructure::parser::regex_cleaner::RegexCleaner;
+use crate::infrastructure::parser::scraper_adapter::ScraperParser;
 
 #[tokio::main]
 async fn main() {
@@ -20,13 +21,19 @@ async fn main() {
         )
         .init();
 
+    let http_client = Arc::new(ReqwestClient::new());
+    let parser = Arc::new(ScraperParser);
+    let cleaner = Arc::new(RegexCleaner);
+    let use_case = Arc::new(ScrapeUseCase::new(http_client, parser, cleaner));
+
     let app = Router::new()
-        .route("/scrape", post(handle_scrape))
+        .route("/scrape", post(presentation::routes::handle_scrape))
         .route("/health", post(|| async { "OK" }))
-        .layer(CorsLayer::permissive());
+        .layer(CorsLayer::permissive())
+        .with_state(use_case);
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3009".into());
-    let addr: SocketAddr = format!("0.0.0.0:{}", port)
+    let addr: std::net::SocketAddr = format!("0.0.0.0:{}", port)
         .parse()
         .expect("Invalid address");
 
@@ -34,30 +41,4 @@ async fn main() {
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn handle_scrape(
-    Json(req): Json<ScrapeRequest>,
-) -> Result<Json<scraper::ScrapeResponse>, (StatusCode, String)> {
-    let timeout_ms = req.timeout_ms.unwrap_or(30_000);
-
-    tracing::info!("Scraping url={} timeout={}ms", req.url, timeout_ms);
-
-    match scraper::scrape_url(&req.url, timeout_ms).await {
-        Ok(result) => {
-            tracing::info!(
-                "Scraped url={} title={:?} sections={} links={} text_len={}",
-                req.url,
-                result.title.chars().take(60).collect::<String>(),
-                result.sections.len(),
-                result.links.len(),
-                result.text.len()
-            );
-            Ok(Json(result))
-        }
-        Err(e) => {
-            tracing::error!("Failed to scrape url={} error={}", req.url, e);
-            Err((StatusCode::INTERNAL_SERVER_ERROR, e))
-        }
-    }
 }
