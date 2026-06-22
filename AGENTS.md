@@ -147,6 +147,9 @@ Every service that persists data MUST publish an event when data changes. Sync-s
 | `data.agent.conversation.deleted` | agent | UnifiedConversation (status=DELETED) | Soft delete; QueryService filters. |
 | `data.agent.message.received` | agent | UnifiedMessage (sender=USER) | User turn. |
 | `data.agent.message.sent` | agent | UnifiedMessage (sender=BOT) | **Only final assistant replies** — intermediate tool-loop iterations are NOT projected. |
+| `data.notion.operation.created` | notion | — (future: NotionOperationRecord) | Operation persisted; status=PENDING. No sync projector yet. |
+| `data.notion.operation.completed` | notion | — (future: NotionOperationRecord) | Operation SUCCESS; carries `notionId`. No sync projector yet. |
+| `data.notion.operation.failed` | notion | — (future: NotionOperationRecord) | Operation FAILED; carries `error`. No sync projector yet. |
 
 **Producer-side rule:** emit AFTER your Postgres write has committed. Build the payload from the persisted row, not the inbound DTO — the row reflects any in-flight transformations (trust-score name updates, status changes, etc.).
 
