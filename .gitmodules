@@ -37,3 +37,6 @@
 [submodule "sync"]
 	path = sync
 	url = https://github.com/artag-services/sync-service.git
+[submodule "scraper-rs"]
+	path = scraper-rs
+	url = https://github.com/artag-services/Scrapping-Rust
